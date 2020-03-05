@@ -21,11 +21,11 @@ type AtomicWriteOperation struct {
 }
 
 type atomicWriteResult struct {
-	err awserr.Error
+	cancellationReason *dynamodb.CancellationReason
 }
 
 func (r *atomicWriteResult) ConditionalFailed() bool {
-	return r.err != nil && r.err.Code() == "ConditionalCheckFailed"
+	return r.cancellationReason != nil && r.cancellationReason.Code != nil && *r.cancellationReason.Code == "ConditionalCheckFailed"
 }
 
 func (op *AtomicWriteOperation) write(item dynamodb.TransactWriteItem) *atomicWriteResult {
@@ -176,7 +176,7 @@ func (op *AtomicWriteOperation) Exec() (bool, error) {
 			return true, nil
 		}
 
-		if attempts < 3 && err.Code() == "InternalServerError" {
+		if err, ok := err.(awserr.Error); ok && err.Code() == "InternalServerError" && attempts < 3 {
 			// Internal errors tend to happen if the database was recently recreated. We should
 			// retry the request a few times.
 			attempts++
@@ -184,28 +184,29 @@ func (op *AtomicWriteOperation) Exec() (bool, error) {
 			continue
 		}
 
-		// The documentation says "TransactionCancelledException", but the API returns
-		// "TransactionCanceledException"...
-		if err.Code() != "TransactionCancelledException" && err.Code() != "TransactionCanceledException" {
-			return false, err
-		}
+		switch err := err.(type) {
+		case *dynamodb.TransactionCanceledException:
+			hasErr := false
+			hasConditionalCheckFailed := false
 
-		hasErr := false
-		hasConditionalCheckFailed := false
-		for i, err := range err.CancellationReasons() {
-			op.results[i].err = err
-			if err != nil {
-				if err.Code() != "ConditionalCheckFailed" {
-					hasErr = true
-				} else {
-					hasConditionalCheckFailed = true
+			for i, reason := range err.CancellationReasons {
+				op.results[i].cancellationReason = reason
+				if reason != nil && reason.Code != nil {
+					if *reason.Code == "ConditionalCheckFailed" {
+						hasConditionalCheckFailed = true
+					} else if *reason.Code != "None" {
+						hasErr = true
+					}
 				}
 			}
-		}
-		if hasErr || !hasConditionalCheckFailed {
+
+			if hasErr || !hasConditionalCheckFailed {
+				return false, err
+			}
+
+			return false, nil
+		default:
 			return false, err
 		}
-
-		return false, nil
 	}
 }

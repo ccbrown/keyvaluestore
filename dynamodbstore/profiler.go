@@ -157,7 +157,7 @@ func (c *ProfilingBackendClient) UpdateItem(input *dynamodb.UpdateItemInput) (*d
 	return output, err
 }
 
-func (c *ProfilingBackendClient) TransactWriteItems(input *dynamodb.TransactWriteItemsInput) (*dynamodb.TransactWriteItemsOutput, TransactWriteErr) {
+func (c *ProfilingBackendClient) TransactWriteItems(input *dynamodb.TransactWriteItemsInput) (*dynamodb.TransactWriteItemsOutput, error) {
 	copy := *input
 	copy.ReturnConsumedCapacity = aws.String(dynamodb.ReturnConsumedCapacityTotal)
 	startTime := time.Now()

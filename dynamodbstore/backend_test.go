@@ -79,9 +79,7 @@ func newTestBackend(client *dynamodb.DynamoDB, tableName string) *Backend {
 	}
 
 	return &Backend{
-		Client: &AWSBackendClient{
-			DynamoDBAPI: client,
-		},
+		Client:    client,
 		TableName: tableName,
 	}
 }
