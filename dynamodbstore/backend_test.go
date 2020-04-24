@@ -89,7 +89,7 @@ func TestBackend(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	} else if client == nil {
-		t.Skip("no dynamodb server available")
+		t.Skip("no dynamodb server available. to start one: docker run -p 8000:8000 --rm -it amazon/dynamodb-local")
 	}
 
 	keyvaluestoretest.TestBackend(t, func() keyvaluestore.Backend {

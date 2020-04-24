@@ -3,6 +3,8 @@ package keyvaluestoretest
 import (
 	"fmt"
 	"math"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 
@@ -787,6 +789,17 @@ func TestBackend(t *testing.T, newBackend func() keyvaluestore.Backend) {
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expected, n, fmt.Sprintf("%#v %#v", tc.min, tc.max))
 		}
+
+		// DynamoDB has to paginate requests for ZCounts on big sets.
+		t.Run("BigZSet", func(t *testing.T) {
+			bigString := strings.Repeat("x", 1000)
+			for i := 0; i < 1100; i++ {
+				require.NoError(t, b.ZAdd("big", strconv.Itoa(i)+bigString, 0.0))
+			}
+			n, err := b.ZCount("big", 0.0, 0.0)
+			assert.NoError(t, err)
+			assert.Equal(t, 1100, n)
+		})
 	})
 
 	t.Run("ZLexCount", func(t *testing.T) {

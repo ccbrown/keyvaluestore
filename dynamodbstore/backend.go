@@ -476,14 +476,22 @@ func (b *Backend) zCount(key string, min, max string, secondaryIndex bool) (int,
 	if secondaryIndex {
 		input.IndexName = aws.String("rk2")
 	}
-	result, err := b.Client.Query(input)
-	if err != nil {
-		return 0, errors.Wrap(err, "dynamodb query request error")
+
+	count := 0
+	for {
+		result, err := b.Client.Query(input)
+		if err != nil {
+			return 0, errors.Wrap(err, "dynamodb query request error")
+		}
+		if result.Count == nil {
+			return 0, fmt.Errorf("no count returned by dynamodb query")
+		}
+		count += int(*result.Count)
+		if len(result.LastEvaluatedKey) == 0 {
+			return count, nil
+		}
+		input.ExclusiveStartKey = result.LastEvaluatedKey
 	}
-	if result.Count == nil {
-		return 0, fmt.Errorf("no count returned by dynamodb query")
-	}
-	return int(*result.Count), nil
 }
 
 func (b *Backend) ZRangeByScore(key string, min, max float64, limit int) ([]string, error) {

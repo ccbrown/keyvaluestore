@@ -61,12 +61,14 @@ type Backend interface {
 	// Get members (and their scores) of a sorted set by descending score.
 	ZRevRangeByScoreWithScores(key string, min, max float64, limit int) (ScoredMembers, error)
 
-	// Gets the number of members with scores between min and max, inclusive.
+	// Gets the number of members with scores between min and max, inclusive. This method can get
+	// somewhat expensive on DynamoDB as it is not a constant-time operation.
 	ZCount(key string, min, max float64) (int, error)
 
 	// Gets the number of members between min and max. All members of the set must have been added
 	// with a zero score. min and max must begin with '(' or '[' to indicate exclusive or inclusive.
-	// Alternatively, min can be "-" and max can be "+" to represent infinities.
+	// Alternatively, min can be "-" and max can be "+" to represent infinities. This method can get
+	// somewhat expensive on DynamoDB as it is not a constant-time operation.
 	ZLexCount(key string, min, max string) (int, error)
 
 	// Get members of a sorted set by lexicographical order. All members of the set must have been
