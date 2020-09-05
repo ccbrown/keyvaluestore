@@ -19,6 +19,11 @@ func (op *readCacheAtomicWriteOperation) SetNX(key string, value interface{}) ke
 	return op.atomicWrite.SetNX(key, value)
 }
 
+func (op *readCacheAtomicWriteOperation) SetXX(key string, value interface{}) keyvaluestore.AtomicWriteResult {
+	op.invalidations = append(op.invalidations, key)
+	return op.atomicWrite.SetXX(key, value)
+}
+
 func (op *readCacheAtomicWriteOperation) SetEQ(key string, value, oldValue interface{}) keyvaluestore.AtomicWriteResult {
 	op.invalidations = append(op.invalidations, key)
 	return op.atomicWrite.SetEQ(key, value, oldValue)

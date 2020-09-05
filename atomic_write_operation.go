@@ -16,6 +16,9 @@ type AtomicWriteOperation interface {
 	// Sets a key. The atomic write operation will be aborted if the key already exists.
 	SetNX(key string, value interface{}) AtomicWriteResult
 
+	// Sets a key. The atomic write operation will be aborted if the key does not already exist.
+	SetXX(key string, value interface{}) AtomicWriteResult
+
 	// Sets a key. The atomic write operation will be aborted if the key does not exist or does not
 	// have the given value.
 	SetEQ(key string, value, oldValue interface{}) AtomicWriteResult

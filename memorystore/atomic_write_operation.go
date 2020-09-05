@@ -47,6 +47,17 @@ func (op *AtomicWriteOperation) SetNX(key string, value interface{}) keyvaluesto
 	})
 }
 
+func (op *AtomicWriteOperation) SetXX(key string, value interface{}) keyvaluestore.AtomicWriteResult {
+	return op.write(&atomicWriteOperation{
+		condition: func() bool {
+			return op.Backend.get(key) != nil
+		},
+		write: func() {
+			op.Backend.set(key, value)
+		},
+	})
+}
+
 func (op *AtomicWriteOperation) SetEQ(key string, value, oldValue interface{}) keyvaluestore.AtomicWriteResult {
 	return op.write(&atomicWriteOperation{
 		condition: func() bool {

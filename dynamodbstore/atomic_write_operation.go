@@ -58,6 +58,18 @@ func (op *AtomicWriteOperation) SetNX(key string, value interface{}) keyvaluesto
 	})
 }
 
+func (op *AtomicWriteOperation) SetXX(key string, value interface{}) keyvaluestore.AtomicWriteResult {
+	return op.write(dynamodb.TransactWriteItem{
+		Put: &dynamodb.Put{
+			ConditionExpression: aws.String("attribute_exists(v)"),
+			Item: newItem(key, "_", map[string]*dynamodb.AttributeValue{
+				"v": attributeValue(value),
+			}),
+			TableName: &op.Backend.TableName,
+		},
+	})
+}
+
 func (op *AtomicWriteOperation) SetEQ(key string, value, oldValue interface{}) keyvaluestore.AtomicWriteResult {
 	return op.write(dynamodb.TransactWriteItem{
 		Put: &dynamodb.Put{

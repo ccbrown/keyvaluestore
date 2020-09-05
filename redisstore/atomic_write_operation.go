@@ -51,6 +51,15 @@ func (op *AtomicWriteOperation) SetNX(key string, value interface{}) keyvaluesto
 	})
 }
 
+func (op *AtomicWriteOperation) SetXX(key string, value interface{}) keyvaluestore.AtomicWriteResult {
+	return op.write(&atomicWriteOperation{
+		key:       key,
+		condition: "redis.call('exists', $@) == 1",
+		write:     "redis.call('set', $@, $0)",
+		args:      []interface{}{value},
+	})
+}
+
 func (op *AtomicWriteOperation) SetEQ(key string, value, oldValue interface{}) keyvaluestore.AtomicWriteResult {
 	return op.write(&atomicWriteOperation{
 		key:       key,
