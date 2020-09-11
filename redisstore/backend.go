@@ -70,6 +70,35 @@ func (b *Backend) SMembers(key string) ([]string, error) {
 	return b.Client.SMembers(key).Result()
 }
 
+func (b *Backend) HSet(key string, field keyvaluestore.KeyValue, fields ...keyvaluestore.KeyValue) error {
+	m := make(map[string]interface{}, len(fields)+1)
+	m[field.Key] = field.Value
+	for _, f := range fields {
+		m[f.Key] = f.Value
+	}
+	return b.Client.HMSet(key, m).Err()
+}
+
+func (b *Backend) HDel(key string, field string, fields ...string) error {
+	args := make([]string, 0, len(fields)+1)
+	args = append(append(args, field), fields...)
+	return b.Client.HDel(key, args...).Err()
+}
+
+func (b *Backend) HGet(key, field string) (*string, error) {
+	v, err := b.Client.HGet(key, field).Result()
+	if err == redis.Nil {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+	return &v, err
+}
+
+func (b *Backend) HGetAll(key string) (map[string]string, error) {
+	return b.Client.HGetAll(key).Result()
+}
+
 func (b *Backend) SetNX(key string, value interface{}) (bool, error) {
 	return b.Client.SetNX(key, value, 0).Result()
 }

@@ -3,6 +3,8 @@ package dynamodbstore
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -166,6 +168,55 @@ func (op *AtomicWriteOperation) SRem(key string, member interface{}, members ...
 					BS: serializeSMembers(member, members...),
 				},
 			},
+		},
+	})
+}
+
+func (op *AtomicWriteOperation) HSet(key string, field keyvaluestore.KeyValue, fields ...keyvaluestore.KeyValue) keyvaluestore.AtomicWriteResult {
+	assignments := make([]string, 0, 1+len(fields))
+	names := make(map[string]*string, 1+len(fields))
+	values := make(map[string]*dynamodb.AttributeValue, 1+len(fields))
+	assignments = append(assignments, "#n0 = :v0")
+	names["#n0"] = aws.String(encodeHashFieldName(field.Key))
+	values[":v0"] = &dynamodb.AttributeValue{
+		B: []byte(*keyvaluestore.ToString(field.Value)),
+	}
+	for i, field := range fields {
+		namePlaceholder := "#n" + strconv.Itoa(i+1)
+		valuePlaceholder := ":v" + strconv.Itoa(i+1)
+		assignments = append(assignments, namePlaceholder+" = "+valuePlaceholder)
+		names[namePlaceholder] = aws.String(encodeHashFieldName(field.Key))
+		values[valuePlaceholder] = &dynamodb.AttributeValue{
+			B: []byte(*keyvaluestore.ToString(field.Value)),
+		}
+	}
+	return op.write(dynamodb.TransactWriteItem{
+		Update: &dynamodb.Update{
+			Key:                       compositeKey(key, "_"),
+			TableName:                 &op.Backend.TableName,
+			UpdateExpression:          aws.String("SET " + strings.Join(assignments, ", ")),
+			ExpressionAttributeNames:  names,
+			ExpressionAttributeValues: values,
+		},
+	})
+}
+
+func (op *AtomicWriteOperation) HDel(key string, field string, fields ...string) keyvaluestore.AtomicWriteResult {
+	placeholders := make([]string, 0, 1+len(fields))
+	names := make(map[string]*string, 1+len(fields))
+	placeholders = append(placeholders, "#n0")
+	names["#n0"] = aws.String(encodeHashFieldName(field))
+	for i, field := range fields {
+		placeholder := "#n" + strconv.Itoa(i+1)
+		placeholders = append(placeholders, placeholder)
+		names[placeholder] = aws.String(encodeHashFieldName(field))
+	}
+	return op.write(dynamodb.TransactWriteItem{
+		Update: &dynamodb.Update{
+			Key:                      compositeKey(key, "_"),
+			TableName:                &op.Backend.TableName,
+			UpdateExpression:         aws.String("REMOVE " + strings.Join(placeholders, ", ")),
+			ExpressionAttributeNames: names,
 		},
 	})
 }

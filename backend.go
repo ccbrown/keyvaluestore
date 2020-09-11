@@ -1,5 +1,10 @@
 package keyvaluestore
 
+type KeyValue struct {
+	Key   string
+	Value interface{}
+}
+
 type Backend interface {
 	// Batch allows you to batch up simple operations for better performance potential. Use this
 	// only for possible performance benefits. Read isolation is implementation-defined and other
@@ -36,6 +41,20 @@ type Backend interface {
 
 	// Get members of a set.
 	SMembers(key string) ([]string, error)
+
+	// Sets one or more fields of the hash at the given key. If no hash exists at the key, a new one
+	// is created. Hashes are ideal for small sizes, but have implementation-dependent size
+	// limitations (400KB for DynamoDB). For large or unbounded sets, use something else.
+	HSet(key string, field KeyValue, fields ...KeyValue) error
+
+	// Deletes one or more fields of the hash at the given key.
+	HDel(key string, field string, fields ...string) error
+
+	// Gets a field of the hash at the given key or nil if the hash or field does not exist.
+	HGet(key, field string) (*string, error)
+
+	// Gets all fields of the hash at the given key.
+	HGetAll(key string) (map[string]string, error)
 
 	// Add to or create a sorted set.
 	ZAdd(key string, member interface{}, score float64) error

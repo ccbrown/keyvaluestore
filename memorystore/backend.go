@@ -134,8 +134,6 @@ func (b *Backend) srem(key string, member interface{}, members ...interface{}) e
 	}
 	if len(s) == 0 {
 		delete(b.m, key)
-	} else {
-		b.m[key] = s
 	}
 	return nil
 }
@@ -153,6 +151,68 @@ func (b *Backend) SMembers(key string) ([]string, error) {
 		results = append(results, k)
 	}
 	return results, nil
+}
+
+func (b *Backend) HSet(key string, field keyvaluestore.KeyValue, fields ...keyvaluestore.KeyValue) error {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+	return b.hset(key, field, fields...)
+}
+
+func (b *Backend) hset(key string, field keyvaluestore.KeyValue, fields ...keyvaluestore.KeyValue) error {
+	h, ok := b.m[key].(map[string]string)
+	if !ok {
+		h = make(map[string]string)
+	}
+	h[field.Key] = *keyvaluestore.ToString(field.Value)
+	for _, field := range fields {
+		h[field.Key] = *keyvaluestore.ToString(field.Value)
+	}
+	b.m[key] = h
+	return nil
+}
+
+func (b *Backend) HDel(key string, field string, fields ...string) error {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+	return b.hdel(key, field, fields...)
+}
+
+func (b *Backend) hdel(key string, field string, fields ...string) error {
+	h, ok := b.m[key].(map[string]string)
+	if !ok {
+		return nil
+	}
+	delete(h, field)
+	for _, field := range fields {
+		delete(h, field)
+	}
+	if len(h) == 0 {
+		delete(b.m, key)
+	}
+	return nil
+}
+
+func (b *Backend) HGet(key, field string) (*string, error) {
+	m, err := b.HGetAll(key)
+	if err != nil {
+		return nil, err
+	}
+	if v, ok := m[field]; ok {
+		return &v, nil
+	}
+	return nil, nil
+}
+
+func (b *Backend) HGetAll(key string) (map[string]string, error) {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+
+	h, ok := b.m[key].(map[string]string)
+	if !ok {
+		return nil, nil
+	}
+	return h, nil
 }
 
 func (b *Backend) SetNX(key string, value interface{}) (bool, error) {

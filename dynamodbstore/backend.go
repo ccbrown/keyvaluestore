@@ -2,6 +2,7 @@ package dynamodbstore
 
 import (
 	"encoding"
+	"encoding/base64"
 	"encoding/binary"
 	"fmt"
 	"math"
@@ -294,6 +295,112 @@ func (b *Backend) SMembers(key string) ([]string, error) {
 		return nil, nil
 	}
 	return attributeStringSliceValue(result.Item["v"]), nil
+}
+
+func encodeHashFieldName(name string) string {
+	return "~" + base64.RawURLEncoding.EncodeToString([]byte(name))
+}
+
+func decodeHashFieldName(name string) string {
+	if !strings.HasPrefix(name, "~") {
+		return ""
+	}
+	b, _ := base64.RawURLEncoding.DecodeString(name[1:])
+	return string(b)
+}
+
+func (b *Backend) HSet(key string, field keyvaluestore.KeyValue, fields ...keyvaluestore.KeyValue) error {
+	assignments := make([]string, 0, 1+len(fields))
+	names := make(map[string]*string, 1+len(fields))
+	values := make(map[string]*dynamodb.AttributeValue, 1+len(fields))
+	assignments = append(assignments, "#n0 = :v0")
+	names["#n0"] = aws.String(encodeHashFieldName(field.Key))
+	values[":v0"] = &dynamodb.AttributeValue{
+		B: []byte(*keyvaluestore.ToString(field.Value)),
+	}
+	for i, field := range fields {
+		namePlaceholder := "#n" + strconv.Itoa(i+1)
+		valuePlaceholder := ":v" + strconv.Itoa(i+1)
+		assignments = append(assignments, namePlaceholder+" = "+valuePlaceholder)
+		names[namePlaceholder] = aws.String(encodeHashFieldName(field.Key))
+		values[valuePlaceholder] = &dynamodb.AttributeValue{
+			B: []byte(*keyvaluestore.ToString(field.Value)),
+		}
+	}
+	if _, err := b.Client.UpdateItem(&dynamodb.UpdateItemInput{
+		Key:                       compositeKey(key, "_"),
+		TableName:                 aws.String(b.TableName),
+		UpdateExpression:          aws.String("SET " + strings.Join(assignments, ", ")),
+		ExpressionAttributeNames:  names,
+		ExpressionAttributeValues: values,
+	}); err != nil {
+		return errors.Wrap(err, "dynamodb update item request error")
+	}
+	return nil
+}
+
+func (b *Backend) HDel(key string, field string, fields ...string) error {
+	placeholders := make([]string, 0, 1+len(fields))
+	names := make(map[string]*string, 1+len(fields))
+	placeholders = append(placeholders, "#n0")
+	names["#n0"] = aws.String(encodeHashFieldName(field))
+	for i, field := range fields {
+		placeholder := "#n" + strconv.Itoa(i+1)
+		placeholders = append(placeholders, placeholder)
+		names[placeholder] = aws.String(encodeHashFieldName(field))
+	}
+	if _, err := b.Client.UpdateItem(&dynamodb.UpdateItemInput{
+		Key:                      compositeKey(key, "_"),
+		TableName:                aws.String(b.TableName),
+		UpdateExpression:         aws.String("REMOVE " + strings.Join(placeholders, ", ")),
+		ExpressionAttributeNames: names,
+	}); err != nil {
+		return errors.Wrap(err, "dynamodb update item request error")
+	}
+	return nil
+}
+
+func (b *Backend) HGet(key, field string) (*string, error) {
+	attributeName := encodeHashFieldName(field)
+	result, err := b.Client.GetItem(&dynamodb.GetItemInput{
+		Key:                  compositeKey(key, "_"),
+		TableName:            aws.String(b.TableName),
+		ProjectionExpression: aws.String("#n"),
+		ExpressionAttributeNames: map[string]*string{
+			"#n": &attributeName,
+		},
+		ConsistentRead: aws.Bool(!b.AllowEventuallyConsistentReads),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "dynamodb get item request error")
+	}
+	if result.Item == nil || result.Item[attributeName] == nil {
+		return nil, nil
+	}
+	return attributeStringValue(result.Item[attributeName]), nil
+}
+
+func (b *Backend) HGetAll(key string) (map[string]string, error) {
+	result, err := b.Client.GetItem(&dynamodb.GetItemInput{
+		Key:            compositeKey(key, "_"),
+		TableName:      aws.String(b.TableName),
+		ConsistentRead: aws.Bool(!b.AllowEventuallyConsistentReads),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "dynamodb get item request error")
+	}
+	if result.Item == nil {
+		return nil, nil
+	}
+	ret := make(map[string]string, len(result.Item))
+	for k, v := range result.Item {
+		if name := decodeHashFieldName(k); name != "" {
+			if v := attributeStringValue(v); v != nil {
+				ret[name] = *v
+			}
+		}
+	}
+	return ret, nil
 }
 
 const floatSortKeyNumBytes = 8

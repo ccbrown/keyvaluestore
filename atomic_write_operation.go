@@ -45,6 +45,12 @@ type AtomicWriteOperation interface {
 	// Removes a member from a set. No conditionals are applied.
 	SRem(key string, member interface{}, members ...interface{}) AtomicWriteResult
 
+	// Sets one or more fields of the hash at the given key. No conditionals are applied.
+	HSet(key string, field KeyValue, fields ...KeyValue) AtomicWriteResult
+
+	// Deletes one or more fields of the hash at the given key. No conditionals are applied.
+	HDel(key string, field string, fields ...string) AtomicWriteResult
+
 	// Executes the operation. If a condition failed, returns false.
 	Exec() (bool, error)
 }

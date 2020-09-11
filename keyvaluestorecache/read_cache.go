@@ -140,6 +140,70 @@ func (c *ReadCache) SRem(key string, member interface{}, members ...interface{})
 	return err
 }
 
+func (c *ReadCache) HSet(key string, field keyvaluestore.KeyValue, fields ...keyvaluestore.KeyValue) error {
+	err := c.backend.HSet(key, field, fields...)
+	c.Invalidate(key)
+	return err
+}
+
+func (c *ReadCache) HDel(key string, field string, fields ...string) error {
+	err := c.backend.HDel(key, field, fields...)
+	c.Invalidate(key)
+	return err
+}
+
+type hGetResult struct {
+	value *string
+	err   error
+}
+
+type readCacheHGetsEntry struct {
+	fields map[string]hGetResult
+}
+
+type readCacheHGetAllEntry struct {
+	fields map[string]string
+	err    error
+}
+
+func (c *ReadCache) HGet(key, field string) (*string, error) {
+	e, _ := c.load(key)
+	if entry, ok := e.(readCacheHGetAllEntry); ok {
+		if entry.err != nil {
+			return nil, entry.err
+		}
+		if v, ok := entry.fields[field]; ok {
+			return &v, nil
+		}
+		return nil, nil
+	}
+	entry, ok := e.(readCacheHGetsEntry)
+	if ok {
+		if r, ok := entry.fields[field]; ok {
+			return r.value, r.err
+		}
+	} else {
+		entry.fields = map[string]hGetResult{}
+	}
+	v, err := c.backend.HGet(key, field)
+	entry.fields[field] = hGetResult{
+		value: v,
+		err:   err,
+	}
+	c.store(key, entry)
+	return v, err
+}
+
+func (c *ReadCache) HGetAll(key string) (map[string]string, error) {
+	v, _ := c.load(key)
+	entry, ok := v.(readCacheHGetAllEntry)
+	if !ok {
+		entry.fields, entry.err = c.backend.HGetAll(key)
+		c.store(key, entry)
+	}
+	return entry.fields, entry.err
+}
+
 type readCacheSMembersEntry struct {
 	members []string
 	err     error

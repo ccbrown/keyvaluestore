@@ -138,6 +138,44 @@ func (op *AtomicWriteOperation) SRem(key string, member interface{}, members ...
 	})
 }
 
+func (op *AtomicWriteOperation) HSet(key string, field keyvaluestore.KeyValue, fields ...keyvaluestore.KeyValue) keyvaluestore.AtomicWriteResult {
+	placeholders := make([]string, 2*(len(fields)+1))
+	for i := 0; i < len(placeholders); i++ {
+		placeholders[i] = fmt.Sprintf("$%v", i)
+	}
+	args := make([]interface{}, 0, 2*(len(fields)+1))
+	args = append(args, field.Key)
+	args = append(args, field.Value)
+	for _, field := range fields {
+		args = append(args, field.Key)
+		args = append(args, field.Value)
+	}
+	return op.write(&atomicWriteOperation{
+		key:       key,
+		condition: "true",
+		write:     "redis.call('hset', $@, " + strings.Join(placeholders, ", ") + ")",
+		args:      args,
+	})
+}
+
+func (op *AtomicWriteOperation) HDel(key string, field string, fields ...string) keyvaluestore.AtomicWriteResult {
+	placeholders := make([]string, 1+len(fields))
+	for i := 0; i < len(placeholders); i++ {
+		placeholders[i] = fmt.Sprintf("$%v", i)
+	}
+	args := make([]interface{}, 0, len(fields)+1)
+	args = append(args, field)
+	for _, field := range fields {
+		args = append(args, field)
+	}
+	return op.write(&atomicWriteOperation{
+		key:       key,
+		condition: "true",
+		write:     "redis.call('hdel', $@, " + strings.Join(placeholders, ", ") + ")",
+		args:      args,
+	})
+}
+
 func preprocessAtomicWriteExpression(in string, keyIndex, argsOffset, numArgs int) string {
 	out := strings.Replace(in, "$@", fmt.Sprintf("KEYS[%d]", keyIndex), -1)
 	for i := numArgs - 1; i >= 0; i-- {

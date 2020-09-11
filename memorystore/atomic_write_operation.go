@@ -131,6 +131,22 @@ func (op *AtomicWriteOperation) SRem(key string, member interface{}, members ...
 	})
 }
 
+func (op *AtomicWriteOperation) HSet(key string, field keyvaluestore.KeyValue, fields ...keyvaluestore.KeyValue) keyvaluestore.AtomicWriteResult {
+	return op.write(&atomicWriteOperation{
+		write: func() {
+			op.Backend.hset(key, field, fields...)
+		},
+	})
+}
+
+func (op *AtomicWriteOperation) HDel(key string, field string, fields ...string) keyvaluestore.AtomicWriteResult {
+	return op.write(&atomicWriteOperation{
+		write: func() {
+			op.Backend.hdel(key, field, fields...)
+		},
+	})
+}
+
 func (op *AtomicWriteOperation) Exec() (bool, error) {
 	if len(op.operations) > keyvaluestore.MaxAtomicWriteOperations {
 		return false, fmt.Errorf("max operation count exceeded")
