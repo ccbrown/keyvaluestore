@@ -158,6 +158,15 @@ func (op *AtomicWriteOperation) HSet(key, field string, value interface{}, field
 	})
 }
 
+func (op *AtomicWriteOperation) HSetNX(key, field string, value interface{}) keyvaluestore.AtomicWriteResult {
+	return op.write(&atomicWriteOperation{
+		key:       key,
+		condition: "redis.call('hexists', $@, $0) == 0",
+		write:     "redis.call('hset', $@, $0, $1)",
+		args:      []interface{}{field, value},
+	})
+}
+
 func (op *AtomicWriteOperation) HDel(key string, field string, fields ...string) keyvaluestore.AtomicWriteResult {
 	placeholders := make([]string, 1+len(fields))
 	for i := 0; i < len(placeholders); i++ {

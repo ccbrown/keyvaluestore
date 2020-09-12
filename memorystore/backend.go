@@ -194,25 +194,30 @@ func (b *Backend) hdel(key string, field string, fields ...string) error {
 }
 
 func (b *Backend) HGet(key, field string) (*string, error) {
-	m, err := b.HGetAll(key)
-	if err != nil {
-		return nil, err
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+	return b.hget(key, field), nil
+}
+
+func (b *Backend) hget(key, field string) *string {
+	if v, ok := b.hgetall(key)[field]; ok {
+		return &v
 	}
-	if v, ok := m[field]; ok {
-		return &v, nil
-	}
-	return nil, nil
+	return nil
 }
 
 func (b *Backend) HGetAll(key string) (map[string]string, error) {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
+	return b.hgetall(key), nil
+}
 
+func (b *Backend) hgetall(key string) map[string]string {
 	h, ok := b.m[key].(map[string]string)
 	if !ok {
-		return nil, nil
+		return nil
 	}
-	return h, nil
+	return h
 }
 
 func (b *Backend) SetNX(key string, value interface{}) (bool, error) {

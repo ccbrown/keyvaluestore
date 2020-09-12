@@ -48,6 +48,10 @@ type AtomicWriteOperation interface {
 	// Sets one or more fields of the hash at the given key. No conditionals are applied.
 	HSet(key, field string, value interface{}, fields ...KeyValue) AtomicWriteResult
 
+	// Sets one or more fields of the hash at the given key. The atomic write operation will be
+	// aborted if the field already exists.
+	HSetNX(key, field string, value interface{}) AtomicWriteResult
+
 	// Deletes one or more fields of the hash at the given key. No conditionals are applied.
 	HDel(key, field string, fields ...string) AtomicWriteResult
 

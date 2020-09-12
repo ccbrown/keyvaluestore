@@ -69,6 +69,11 @@ func (op *readCacheAtomicWriteOperation) HSet(key, field string, value interface
 	return op.atomicWrite.HSet(key, field, value, fields...)
 }
 
+func (op *readCacheAtomicWriteOperation) HSetNX(key, field string, value interface{}) keyvaluestore.AtomicWriteResult {
+	op.invalidations = append(op.invalidations, key)
+	return op.atomicWrite.HSetNX(key, field, value)
+}
+
 func (op *readCacheAtomicWriteOperation) HDel(key, field string, fields ...string) keyvaluestore.AtomicWriteResult {
 	op.invalidations = append(op.invalidations, key)
 	return op.atomicWrite.HDel(key, field, fields...)

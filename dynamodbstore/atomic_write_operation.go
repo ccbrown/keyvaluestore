@@ -201,6 +201,25 @@ func (op *AtomicWriteOperation) HSet(key, field string, value interface{}, field
 	})
 }
 
+func (op *AtomicWriteOperation) HSetNX(key, field string, value interface{}) keyvaluestore.AtomicWriteResult {
+	return op.write(dynamodb.TransactWriteItem{
+		Update: &dynamodb.Update{
+			Key:                 compositeKey(key, "_"),
+			TableName:           &op.Backend.TableName,
+			UpdateExpression:    aws.String("SET #f = :v"),
+			ConditionExpression: aws.String("attribute_not_exists(#f)"),
+			ExpressionAttributeNames: map[string]*string{
+				"#f": aws.String(encodeHashFieldName(field)),
+			},
+			ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+				":v": &dynamodb.AttributeValue{
+					B: []byte(*keyvaluestore.ToString(value)),
+				},
+			},
+		},
+	})
+}
+
 func (op *AtomicWriteOperation) HDel(key, field string, fields ...string) keyvaluestore.AtomicWriteResult {
 	placeholders := make([]string, 0, 1+len(fields))
 	names := make(map[string]*string, 1+len(fields))

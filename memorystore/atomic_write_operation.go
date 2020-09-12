@@ -139,6 +139,17 @@ func (op *AtomicWriteOperation) HSet(key, field string, value interface{}, field
 	})
 }
 
+func (op *AtomicWriteOperation) HSetNX(key, field string, value interface{}) keyvaluestore.AtomicWriteResult {
+	return op.write(&atomicWriteOperation{
+		condition: func() bool {
+			return op.Backend.hget(key, field) == nil
+		},
+		write: func() {
+			op.Backend.hset(key, field, value)
+		},
+	})
+}
+
 func (op *AtomicWriteOperation) HDel(key, field string, fields ...string) keyvaluestore.AtomicWriteResult {
 	return op.write(&atomicWriteOperation{
 		write: func() {

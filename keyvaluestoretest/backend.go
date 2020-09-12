@@ -315,6 +315,33 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		assert.Equal(t, "bar", *v)
 	})
 
+	t.Run("HSetNX", func(t *testing.T) {
+		assert.NoError(t, b.HDel("h", "foo"))
+		assert.NoError(t, b.Set("foo", "x"))
+
+		tx := b.AtomicWrite()
+		defer assertConditionPass(t, tx.Set("foo", "bar"))
+		defer assertConditionPass(t, tx.HSetNX("h", "foo", "bar"))
+		ok, err := tx.Exec()
+		assert.NoError(t, err)
+		assert.True(t, ok)
+
+		v, err := b.Get("foo")
+		assert.NoError(t, err)
+		assert.Equal(t, "bar", *v)
+
+		tx = b.AtomicWrite()
+		defer assertConditionPass(t, tx.Set("foo", "baz"))
+		defer assertConditionFail(t, tx.HSetNX("h", "foo", "bar"))
+		ok, err = tx.Exec()
+		assert.NoError(t, err)
+		assert.False(t, ok)
+
+		v, err = b.Get("foo")
+		assert.NoError(t, err)
+		assert.Equal(t, "bar", *v)
+	})
+
 	t.Run("HDel", func(t *testing.T) {
 		assert.NoError(t, b.Set("setcond", "foo"))
 		assert.NoError(t, b.HSet("h", "foo", "bar"))
