@@ -172,14 +172,14 @@ func (op *AtomicWriteOperation) SRem(key string, member interface{}, members ...
 	})
 }
 
-func (op *AtomicWriteOperation) HSet(key string, field keyvaluestore.KeyValue, fields ...keyvaluestore.KeyValue) keyvaluestore.AtomicWriteResult {
+func (op *AtomicWriteOperation) HSet(key, field string, value interface{}, fields ...keyvaluestore.KeyValue) keyvaluestore.AtomicWriteResult {
 	assignments := make([]string, 0, 1+len(fields))
 	names := make(map[string]*string, 1+len(fields))
 	values := make(map[string]*dynamodb.AttributeValue, 1+len(fields))
 	assignments = append(assignments, "#n0 = :v0")
-	names["#n0"] = aws.String(encodeHashFieldName(field.Key))
+	names["#n0"] = aws.String(encodeHashFieldName(field))
 	values[":v0"] = &dynamodb.AttributeValue{
-		B: []byte(*keyvaluestore.ToString(field.Value)),
+		B: []byte(*keyvaluestore.ToString(value)),
 	}
 	for i, field := range fields {
 		namePlaceholder := "#n" + strconv.Itoa(i+1)
@@ -201,7 +201,7 @@ func (op *AtomicWriteOperation) HSet(key string, field keyvaluestore.KeyValue, f
 	})
 }
 
-func (op *AtomicWriteOperation) HDel(key string, field string, fields ...string) keyvaluestore.AtomicWriteResult {
+func (op *AtomicWriteOperation) HDel(key, field string, fields ...string) keyvaluestore.AtomicWriteResult {
 	placeholders := make([]string, 0, 1+len(fields))
 	names := make(map[string]*string, 1+len(fields))
 	placeholders = append(placeholders, "#n0")

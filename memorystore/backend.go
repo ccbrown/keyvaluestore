@@ -153,18 +153,18 @@ func (b *Backend) SMembers(key string) ([]string, error) {
 	return results, nil
 }
 
-func (b *Backend) HSet(key string, field keyvaluestore.KeyValue, fields ...keyvaluestore.KeyValue) error {
+func (b *Backend) HSet(key, field string, value interface{}, fields ...keyvaluestore.KeyValue) error {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
-	return b.hset(key, field, fields...)
+	return b.hset(key, field, value, fields...)
 }
 
-func (b *Backend) hset(key string, field keyvaluestore.KeyValue, fields ...keyvaluestore.KeyValue) error {
+func (b *Backend) hset(key, field string, value interface{}, fields ...keyvaluestore.KeyValue) error {
 	h, ok := b.m[key].(map[string]string)
 	if !ok {
 		h = make(map[string]string)
 	}
-	h[field.Key] = *keyvaluestore.ToString(field.Value)
+	h[field] = *keyvaluestore.ToString(value)
 	for _, field := range fields {
 		h[field.Key] = *keyvaluestore.ToString(field.Value)
 	}

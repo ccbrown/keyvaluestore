@@ -295,7 +295,7 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 
 		tx := b.AtomicWrite()
 		defer assertConditionFail(t, tx.SetNX("setcond", "foo"))
-		defer assertConditionPass(t, tx.HSet("h", keyvaluestore.KeyValue{"foo", "bar"}))
+		defer assertConditionPass(t, tx.HSet("h", "foo", "bar"))
 		ok, err := tx.Exec()
 		assert.NoError(t, err)
 		assert.False(t, ok)
@@ -305,7 +305,7 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		assert.Nil(t, v)
 
 		tx = b.AtomicWrite()
-		defer assertConditionPass(t, tx.HSet("h", keyvaluestore.KeyValue{"foo", "bar"}))
+		defer assertConditionPass(t, tx.HSet("h", "foo", "bar"))
 		ok, err = tx.Exec()
 		assert.NoError(t, err)
 		assert.True(t, ok)
@@ -317,7 +317,7 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 
 	t.Run("HDel", func(t *testing.T) {
 		assert.NoError(t, b.Set("setcond", "foo"))
-		assert.NoError(t, b.HSet("h", keyvaluestore.KeyValue{"foo", "bar"}))
+		assert.NoError(t, b.HSet("h", "foo", "bar"))
 
 		tx := b.AtomicWrite()
 		defer assertConditionFail(t, tx.SetNX("setcond", "foo"))
@@ -494,7 +494,7 @@ func TestBackend(t *testing.T, newBackend func() keyvaluestore.Backend) {
 		assert.NoError(t, err)
 		assert.Nil(t, v)
 
-		assert.NoError(t, b.HSet("foo", keyvaluestore.KeyValue{"bar", "baz"}))
+		assert.NoError(t, b.HSet("foo", "bar", "baz"))
 
 		v, err = b.HGet("foo", "bar")
 		assert.NoError(t, err)
@@ -506,7 +506,7 @@ func TestBackend(t *testing.T, newBackend func() keyvaluestore.Backend) {
 
 		assert.NoError(t, b.HDel("foo", "bar"))
 
-		assert.NoError(t, b.HSet("foo", keyvaluestore.KeyValue{"bar", "baz"}))
+		assert.NoError(t, b.HSet("foo", "bar", "baz"))
 
 		v, err := b.HGet("foo", "bar")
 		assert.NoError(t, err)
@@ -522,7 +522,7 @@ func TestBackend(t *testing.T, newBackend func() keyvaluestore.Backend) {
 	t.Run("HGetAll", func(t *testing.T) {
 		b := newBackend()
 
-		assert.NoError(t, b.HSet("foo", keyvaluestore.KeyValue{"bar", "baz"}, keyvaluestore.KeyValue{"baz", "qux"}))
+		assert.NoError(t, b.HSet("foo", "bar", "baz", keyvaluestore.KeyValue{"baz", "qux"}))
 
 		m, err := b.HGetAll("foo")
 		assert.NoError(t, err)

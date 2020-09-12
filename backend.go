@@ -45,10 +45,10 @@ type Backend interface {
 	// Sets one or more fields of the hash at the given key. If no hash exists at the key, a new one
 	// is created. Hashes are ideal for small sizes, but have implementation-dependent size
 	// limitations (400KB for DynamoDB). For large or unbounded sets, use something else.
-	HSet(key string, field KeyValue, fields ...KeyValue) error
+	HSet(key, field string, value interface{}, fields ...KeyValue) error
 
 	// Deletes one or more fields of the hash at the given key.
-	HDel(key string, field string, fields ...string) error
+	HDel(key, field string, fields ...string) error
 
 	// Gets a field of the hash at the given key or nil if the hash or field does not exist.
 	HGet(key, field string) (*string, error)

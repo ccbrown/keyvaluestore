@@ -70,9 +70,9 @@ func (b *Backend) SMembers(key string) ([]string, error) {
 	return b.Client.SMembers(key).Result()
 }
 
-func (b *Backend) HSet(key string, field keyvaluestore.KeyValue, fields ...keyvaluestore.KeyValue) error {
+func (b *Backend) HSet(key, field string, value interface{}, fields ...keyvaluestore.KeyValue) error {
 	m := make(map[string]interface{}, len(fields)+1)
-	m[field.Key] = field.Value
+	m[field] = value
 	for _, f := range fields {
 		m[f.Key] = f.Value
 	}

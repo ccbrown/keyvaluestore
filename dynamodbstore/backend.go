@@ -309,14 +309,14 @@ func decodeHashFieldName(name string) string {
 	return string(b)
 }
 
-func (b *Backend) HSet(key string, field keyvaluestore.KeyValue, fields ...keyvaluestore.KeyValue) error {
+func (b *Backend) HSet(key, field string, value interface{}, fields ...keyvaluestore.KeyValue) error {
 	assignments := make([]string, 0, 1+len(fields))
 	names := make(map[string]*string, 1+len(fields))
 	values := make(map[string]*dynamodb.AttributeValue, 1+len(fields))
 	assignments = append(assignments, "#n0 = :v0")
-	names["#n0"] = aws.String(encodeHashFieldName(field.Key))
+	names["#n0"] = aws.String(encodeHashFieldName(field))
 	values[":v0"] = &dynamodb.AttributeValue{
-		B: []byte(*keyvaluestore.ToString(field.Value)),
+		B: []byte(*keyvaluestore.ToString(value)),
 	}
 	for i, field := range fields {
 		namePlaceholder := "#n" + strconv.Itoa(i+1)
@@ -339,7 +339,7 @@ func (b *Backend) HSet(key string, field keyvaluestore.KeyValue, fields ...keyva
 	return nil
 }
 
-func (b *Backend) HDel(key string, field string, fields ...string) error {
+func (b *Backend) HDel(key, field string, fields ...string) error {
 	placeholders := make([]string, 0, 1+len(fields))
 	names := make(map[string]*string, 1+len(fields))
 	placeholders = append(placeholders, "#n0")

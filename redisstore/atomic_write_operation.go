@@ -138,14 +138,14 @@ func (op *AtomicWriteOperation) SRem(key string, member interface{}, members ...
 	})
 }
 
-func (op *AtomicWriteOperation) HSet(key string, field keyvaluestore.KeyValue, fields ...keyvaluestore.KeyValue) keyvaluestore.AtomicWriteResult {
+func (op *AtomicWriteOperation) HSet(key, field string, value interface{}, fields ...keyvaluestore.KeyValue) keyvaluestore.AtomicWriteResult {
 	placeholders := make([]string, 2*(len(fields)+1))
 	for i := 0; i < len(placeholders); i++ {
 		placeholders[i] = fmt.Sprintf("$%v", i)
 	}
 	args := make([]interface{}, 0, 2*(len(fields)+1))
-	args = append(args, field.Key)
-	args = append(args, field.Value)
+	args = append(args, field)
+	args = append(args, value)
 	for _, field := range fields {
 		args = append(args, field.Key)
 		args = append(args, field.Value)

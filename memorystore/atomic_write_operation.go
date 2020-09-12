@@ -131,15 +131,15 @@ func (op *AtomicWriteOperation) SRem(key string, member interface{}, members ...
 	})
 }
 
-func (op *AtomicWriteOperation) HSet(key string, field keyvaluestore.KeyValue, fields ...keyvaluestore.KeyValue) keyvaluestore.AtomicWriteResult {
+func (op *AtomicWriteOperation) HSet(key, field string, value interface{}, fields ...keyvaluestore.KeyValue) keyvaluestore.AtomicWriteResult {
 	return op.write(&atomicWriteOperation{
 		write: func() {
-			op.Backend.hset(key, field, fields...)
+			op.Backend.hset(key, field, value, fields...)
 		},
 	})
 }
 
-func (op *AtomicWriteOperation) HDel(key string, field string, fields ...string) keyvaluestore.AtomicWriteResult {
+func (op *AtomicWriteOperation) HDel(key, field string, fields ...string) keyvaluestore.AtomicWriteResult {
 	return op.write(&atomicWriteOperation{
 		write: func() {
 			op.Backend.hdel(key, field, fields...)

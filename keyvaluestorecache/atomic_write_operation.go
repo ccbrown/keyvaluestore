@@ -64,12 +64,12 @@ func (op *readCacheAtomicWriteOperation) SRem(key string, member interface{}, me
 	return op.atomicWrite.SRem(key, member, members...)
 }
 
-func (op *readCacheAtomicWriteOperation) HSet(key string, field keyvaluestore.KeyValue, fields ...keyvaluestore.KeyValue) keyvaluestore.AtomicWriteResult {
+func (op *readCacheAtomicWriteOperation) HSet(key, field string, value interface{}, fields ...keyvaluestore.KeyValue) keyvaluestore.AtomicWriteResult {
 	op.invalidations = append(op.invalidations, key)
-	return op.atomicWrite.HSet(key, field, fields...)
+	return op.atomicWrite.HSet(key, field, value, fields...)
 }
 
-func (op *readCacheAtomicWriteOperation) HDel(key string, field string, fields ...string) keyvaluestore.AtomicWriteResult {
+func (op *readCacheAtomicWriteOperation) HDel(key, field string, fields ...string) keyvaluestore.AtomicWriteResult {
 	op.invalidations = append(op.invalidations, key)
 	return op.atomicWrite.HDel(key, field, fields...)
 }

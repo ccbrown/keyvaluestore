@@ -140,13 +140,13 @@ func (c *ReadCache) SRem(key string, member interface{}, members ...interface{})
 	return err
 }
 
-func (c *ReadCache) HSet(key string, field keyvaluestore.KeyValue, fields ...keyvaluestore.KeyValue) error {
-	err := c.backend.HSet(key, field, fields...)
+func (c *ReadCache) HSet(key, field string, value interface{}, fields ...keyvaluestore.KeyValue) error {
+	err := c.backend.HSet(key, field, value, fields...)
 	c.Invalidate(key)
 	return err
 }
 
-func (c *ReadCache) HDel(key string, field string, fields ...string) error {
+func (c *ReadCache) HDel(key, field string, fields ...string) error {
 	err := c.backend.HDel(key, field, fields...)
 	c.Invalidate(key)
 	return err
