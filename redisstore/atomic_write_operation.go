@@ -103,6 +103,15 @@ func (op *AtomicWriteOperation) ZAdd(key string, member interface{}, score float
 	})
 }
 
+func (op *AtomicWriteOperation) ZAddNX(key string, member interface{}, score float64) keyvaluestore.AtomicWriteResult {
+	return op.write(&atomicWriteOperation{
+		key:       key,
+		condition: "redis.call('zscore', $@, $0) == false",
+		write:     "redis.call('zadd', $@, $1, $0)",
+		args:      []interface{}{member, score},
+	})
+}
+
 func (op *AtomicWriteOperation) ZRem(key string, member interface{}) keyvaluestore.AtomicWriteResult {
 	return op.write(&atomicWriteOperation{
 		key:       key,

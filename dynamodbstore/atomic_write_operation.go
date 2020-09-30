@@ -132,6 +132,20 @@ func (op *AtomicWriteOperation) ZAdd(key string, member interface{}, score float
 	})
 }
 
+func (op *AtomicWriteOperation) ZAddNX(key string, member interface{}, score float64) keyvaluestore.AtomicWriteResult {
+	s := *keyvaluestore.ToString(member)
+	return op.write(dynamodb.TransactWriteItem{
+		Put: &dynamodb.Put{
+			TableName:           &op.Backend.TableName,
+			ConditionExpression: aws.String("attribute_not_exists(v)"),
+			Item: newItem(key, s, map[string]*dynamodb.AttributeValue{
+				"v":   attributeValue(s),
+				"rk2": attributeValue(floatSortKey(score) + s),
+			}),
+		},
+	})
+}
+
 func (op *AtomicWriteOperation) ZRem(key string, member interface{}) keyvaluestore.AtomicWriteResult {
 	s := *keyvaluestore.ToString(member)
 	return op.write(dynamodb.TransactWriteItem{

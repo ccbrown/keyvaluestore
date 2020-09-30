@@ -36,6 +36,10 @@ type AtomicWriteOperation interface {
 	// Adds a member to a sorted set. No conditionals are applied.
 	ZAdd(key string, member interface{}, score float64) AtomicWriteResult
 
+	// Adds a member to a sorted set. The atomic write operation will be aborted if the member
+	// already exists in the set.
+	ZAddNX(key string, member interface{}, score float64) AtomicWriteResult
+
 	// Removes a member from a sorted set. No conditionals are applied.
 	ZRem(key string, member interface{}) AtomicWriteResult
 

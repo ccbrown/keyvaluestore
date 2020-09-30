@@ -370,6 +370,17 @@ func (b *Backend) ZIncrBy(key string, member string, n float64) (float64, error)
 	})
 }
 
+func (b *Backend) zscore(key string, member interface{}) *float64 {
+	s, _ := b.m[key].(*sortedSet)
+	if s != nil {
+		v := *keyvaluestore.ToString(member)
+		if score, ok := s.scoresByMember[v]; ok {
+			return &score
+		}
+	}
+	return nil
+}
+
 func (b *Backend) ZRem(key string, member interface{}) error {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
