@@ -56,7 +56,8 @@ type Backend interface {
 	// Gets all fields of the hash at the given key.
 	HGetAll(key string) (map[string]string, error)
 
-	// Add to or create a sorted set.
+	// Add to or create a sorted set. The size of the member may be limited by some backends (for
+	// example, DynamoDB limits it to approximately 1024 bytes).
 	ZAdd(key string, member interface{}, score float64) error
 
 	// Gets the score for a member added via ZAdd.
@@ -100,6 +101,28 @@ type Backend interface {
 	// exclusive or inclusive. Alternatively, min can be "-" and max can be "+" to represent
 	// infinities.
 	ZRevRangeByLex(key string, min, max string, limit int) ([]string, error)
+
+	// Add to or create a sorted hash. A sorted hash is like a cross between a hash and sorted set.
+	// It uses a field name instead of the member for the purposes of identifying and
+	// lexicographically sorting members.
+	//
+	// With DynamoDB, the field is limited to approximately 1024 bytes while the member is not.
+	ZHAdd(key, field string, member interface{}) error
+
+	// Remove from a sorted hash.
+	ZHRem(key, field string) error
+
+	// Get members of a sorted hash by their fields' lexicographical order. All members of the set
+	// must have been added with a zero score. min and max must begin with '(' or '[' to indicate
+	// exclusive or inclusive. Alternatively, min can be "-" and max can be "+" to represent
+	// infinities.
+	ZHRangeByLex(key string, min, max string, limit int) ([]string, error)
+
+	// Get members of a sorted hash by their fields' reverse lexicographical order. All members of
+	// the set must have been added with a zero score. min and max must begin with '(' or '[' to
+	// indicate exclusive or inclusive. Alternatively, min can be "-" and max can be "+" to
+	// represent infinities.
+	ZHRevRangeByLex(key string, min, max string, limit int) ([]string, error)
 }
 
 type ScoredMembers []*ScoredMember

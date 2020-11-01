@@ -103,6 +103,11 @@ func (op *AtomicWriteOperation) ZAdd(key string, member interface{}, score float
 	})
 }
 
+func (op *AtomicWriteOperation) ZHAdd(key, field string, member interface{}) keyvaluestore.AtomicWriteResult {
+	s := *keyvaluestore.ToString(member)
+	return op.ZAdd(key, encodeZHField(field, true)+s, 0.0)
+}
+
 func (op *AtomicWriteOperation) ZAddNX(key string, member interface{}, score float64) keyvaluestore.AtomicWriteResult {
 	return op.write(&atomicWriteOperation{
 		key:       key,
@@ -118,6 +123,17 @@ func (op *AtomicWriteOperation) ZRem(key string, member interface{}) keyvaluesto
 		condition: "true",
 		write:     "redis.call('zrem', $@, $0)",
 		args:      []interface{}{member},
+	})
+}
+
+func (op *AtomicWriteOperation) ZHRem(key, field string) keyvaluestore.AtomicWriteResult {
+	min := "[" + encodeZHField(field, true)
+	max := "(" + encodeZHField(field, false)
+	return op.write(&atomicWriteOperation{
+		key:       key,
+		condition: "true",
+		write:     "redis.call('zremrangebylex', $@, $0, $1)",
+		args:      []interface{}{min, max},
 	})
 }
 

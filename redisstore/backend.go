@@ -133,6 +133,24 @@ func (b *Backend) ZAdd(key string, member interface{}, score float64) error {
 	}).Err()
 }
 
+func encodeZHField(field string, complete bool) string {
+	fieldBytes := []byte(field)
+	ret := make([]byte, len(fieldBytes)*2)
+	for i, b := range fieldBytes {
+		ret[i*2] = b
+		ret[i*2+1] = 255
+	}
+	if complete {
+		ret[len(ret)-1] = 0
+	}
+	return string(ret)
+}
+
+func (b *Backend) ZHAdd(key, field string, member interface{}) error {
+	s := *keyvaluestore.ToString(member)
+	return b.ZAdd(key, encodeZHField(field, true)+s, 0.0)
+}
+
 func (b *Backend) ZScore(key string, member interface{}) (*float64, error) {
 	if score, err := b.Client.ZScore(key, *keyvaluestore.ToString(member)).Result(); err == nil {
 		return &score, nil
@@ -144,6 +162,12 @@ func (b *Backend) ZScore(key string, member interface{}) (*float64, error) {
 
 func (b *Backend) ZRem(key string, member interface{}) error {
 	return b.Client.ZRem(key, member).Err()
+}
+
+func (b *Backend) ZHRem(key, field string) error {
+	min := "[" + encodeZHField(field, true)
+	max := "(" + encodeZHField(field, false)
+	return b.Client.ZRemRangeByLex(key, min, max).Err()
 }
 
 func (b *Backend) ZRangeByScore(key string, min, max float64, limit int) ([]string, error) {
@@ -223,10 +247,56 @@ func (b *Backend) ZRangeByLex(key string, min, max string, limit int) ([]string,
 	}).Result()
 }
 
+func trimZHFieldPrefix(s string) string {
+	bytes := []byte(s)
+	for i := 0; i < len(bytes); i++ {
+		if bytes[i] == 0 {
+			return string(bytes[i+1:])
+		}
+	}
+	return ""
+}
+
+func trimZHFieldPrefixes(s []string) []string {
+	ret := make([]string, len(s))
+	for i, s := range s {
+		ret[i] = trimZHFieldPrefix(s)
+	}
+	return ret
+}
+
+func encodeZHMinMax(min, max string) (string, string) {
+	switch min[0] {
+	case '[':
+		min = "[" + encodeZHField(min[1:], true)
+	case '(':
+		min = "[" + encodeZHField(min[1:], false)
+	}
+	switch max[0] {
+	case '[':
+		max = "[" + encodeZHField(max[1:], false)
+	case '(':
+		max = "(" + encodeZHField(max[1:], true)
+	}
+	return min, max
+}
+
+func (b *Backend) ZHRangeByLex(key string, min, max string, limit int) ([]string, error) {
+	min, max = encodeZHMinMax(min, max)
+	members, err := b.ZRangeByLex(key, min, max, limit)
+	return trimZHFieldPrefixes(members), err
+}
+
 func (b *Backend) ZRevRangeByLex(key string, min, max string, limit int) ([]string, error) {
 	return b.Client.ZRevRangeByLex(key, redis.ZRangeBy{
 		Min:   min,
 		Max:   max,
 		Count: int64(limit),
 	}).Result()
+}
+
+func (b *Backend) ZHRevRangeByLex(key string, min, max string, limit int) ([]string, error) {
+	min, max = encodeZHMinMax(min, max)
+	members, err := b.ZRevRangeByLex(key, min, max, limit)
+	return trimZHFieldPrefixes(members), err
 }

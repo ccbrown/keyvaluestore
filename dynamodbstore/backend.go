@@ -460,6 +460,20 @@ func (b *Backend) ZAdd(key string, member interface{}, score float64) error {
 	return nil
 }
 
+func (b *Backend) ZHAdd(key, field string, member interface{}) error {
+	s := *keyvaluestore.ToString(member)
+	if _, err := b.Client.PutItem(&dynamodb.PutItemInput{
+		TableName: aws.String(b.TableName),
+		Item: newItem(key, field, map[string]*dynamodb.AttributeValue{
+			"v":   attributeValue(s),
+			"rk2": attributeValue(floatSortKey(0.0) + field),
+		}),
+	}); err != nil {
+		return errors.Wrap(err, "dynamodb put item request error")
+	}
+	return nil
+}
+
 func (b *Backend) ZScore(key string, member interface{}) (*float64, error) {
 	s := *keyvaluestore.ToString(member)
 	result, err := b.Client.GetItem(&dynamodb.GetItemInput{
@@ -517,9 +531,13 @@ func (b *Backend) ZIncrBy(key string, member string, n float64) (float64, error)
 
 func (b *Backend) ZRem(key string, member interface{}) error {
 	s := *keyvaluestore.ToString(member)
+	return b.ZHRem(key, s)
+}
+
+func (b *Backend) ZHRem(key, field string) error {
 	if _, err := b.Client.DeleteItem(&dynamodb.DeleteItemInput{
 		TableName: aws.String(b.TableName),
-		Key:       compositeKey(key, s),
+		Key:       compositeKey(key, field),
 	}); err != nil {
 		return errors.Wrap(err, "dynamodb delete item request error")
 	}
@@ -634,7 +652,17 @@ func (b *Backend) ZRangeByLex(key string, min, max string, limit int) ([]string,
 	return members.Values(), err
 }
 
+func (b *Backend) ZHRangeByLex(key string, min, max string, limit int) ([]string, error) {
+	members, err := b.zRangeByLex(key, min, max, limit, false, false)
+	return members.Values(), err
+}
+
 func (b *Backend) ZRevRangeByLex(key string, min, max string, limit int) ([]string, error) {
+	members, err := b.zRangeByLex(key, min, max, limit, true, false)
+	return members.Values(), err
+}
+
+func (b *Backend) ZHRevRangeByLex(key string, min, max string, limit int) ([]string, error) {
 	members, err := b.zRangeByLex(key, min, max, limit, true, false)
 	return members.Values(), err
 }

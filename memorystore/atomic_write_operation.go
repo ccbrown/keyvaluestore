@@ -98,22 +98,34 @@ func (op *AtomicWriteOperation) IncrBy(key string, n int64) keyvaluestore.Atomic
 }
 
 func (op *AtomicWriteOperation) ZAdd(key string, member interface{}, score float64) keyvaluestore.AtomicWriteResult {
+	s := *keyvaluestore.ToString(member)
 	return op.write(&atomicWriteOperation{
 		write: func() {
-			op.Backend.zadd(key, member, func(previousScore *float64) (float64, error) {
+			op.Backend.zhadd(key, s, s, func(previousScore *float64) (float64, error) {
 				return score, nil
 			})
 		},
 	})
 }
 
+func (op *AtomicWriteOperation) ZHAdd(key, field string, member interface{}) keyvaluestore.AtomicWriteResult {
+	return op.write(&atomicWriteOperation{
+		write: func() {
+			op.Backend.zhadd(key, field, member, func(previousScore *float64) (float64, error) {
+				return 0.0, nil
+			})
+		},
+	})
+}
+
 func (op *AtomicWriteOperation) ZAddNX(key string, member interface{}, score float64) keyvaluestore.AtomicWriteResult {
+	s := *keyvaluestore.ToString(member)
 	return op.write(&atomicWriteOperation{
 		condition: func() bool {
 			return op.Backend.zscore(key, member) == nil
 		},
 		write: func() {
-			op.Backend.zadd(key, member, func(previousScore *float64) (float64, error) {
+			op.Backend.zhadd(key, s, s, func(previousScore *float64) (float64, error) {
 				return score, nil
 			})
 		},
@@ -121,9 +133,14 @@ func (op *AtomicWriteOperation) ZAddNX(key string, member interface{}, score flo
 }
 
 func (op *AtomicWriteOperation) ZRem(key string, member interface{}) keyvaluestore.AtomicWriteResult {
+	s := *keyvaluestore.ToString(member)
+	return op.ZHRem(key, s)
+}
+
+func (op *AtomicWriteOperation) ZHRem(key, field string) keyvaluestore.AtomicWriteResult {
 	return op.write(&atomicWriteOperation{
 		write: func() {
-			op.Backend.zrem(key, member)
+			op.Backend.zhrem(key, field)
 		},
 	})
 }

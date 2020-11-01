@@ -132,6 +132,19 @@ func (op *AtomicWriteOperation) ZAdd(key string, member interface{}, score float
 	})
 }
 
+func (op *AtomicWriteOperation) ZHAdd(key, field string, member interface{}) keyvaluestore.AtomicWriteResult {
+	s := *keyvaluestore.ToString(member)
+	return op.write(dynamodb.TransactWriteItem{
+		Put: &dynamodb.Put{
+			TableName: &op.Backend.TableName,
+			Item: newItem(key, field, map[string]*dynamodb.AttributeValue{
+				"v":   attributeValue(s),
+				"rk2": attributeValue(floatSortKey(0.0) + field),
+			}),
+		},
+	})
+}
+
 func (op *AtomicWriteOperation) ZAddNX(key string, member interface{}, score float64) keyvaluestore.AtomicWriteResult {
 	s := *keyvaluestore.ToString(member)
 	return op.write(dynamodb.TransactWriteItem{
@@ -148,10 +161,14 @@ func (op *AtomicWriteOperation) ZAddNX(key string, member interface{}, score flo
 
 func (op *AtomicWriteOperation) ZRem(key string, member interface{}) keyvaluestore.AtomicWriteResult {
 	s := *keyvaluestore.ToString(member)
+	return op.ZHRem(key, s)
+}
+
+func (op *AtomicWriteOperation) ZHRem(key, field string) keyvaluestore.AtomicWriteResult {
 	return op.write(dynamodb.TransactWriteItem{
 		Delete: &dynamodb.Delete{
 			TableName: &op.Backend.TableName,
-			Key:       compositeKey(key, s),
+			Key:       compositeKey(key, field),
 		},
 	})
 }

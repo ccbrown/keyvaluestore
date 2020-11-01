@@ -33,7 +33,8 @@ type AtomicWriteOperation interface {
 	// number instead. No conditionals are applied.
 	IncrBy(key string, n int64) AtomicWriteResult
 
-	// Adds a member to a sorted set. No conditionals are applied.
+	// Add to or create a sorted set. The size of the member may be limited by some backends (for
+	// example, DynamoDB limits it to approximately 1024 bytes). No conditionals are applied.
 	ZAdd(key string, member interface{}, score float64) AtomicWriteResult
 
 	// Adds a member to a sorted set. The atomic write operation will be aborted if the member
@@ -42,6 +43,18 @@ type AtomicWriteOperation interface {
 
 	// Removes a member from a sorted set. No conditionals are applied.
 	ZRem(key string, member interface{}) AtomicWriteResult
+
+	// Add to or create a sorted hash. A sorted hash is like a cross between a hash and sorted set.
+	// It uses a field name instead of the member for the purposes of identifying and
+	// lexicographically sorting members.
+	//
+	// With DynamoDB, the field is limited to approximately 1024 bytes while the member is not.
+	//
+	// No conditionals are applied.
+	ZHAdd(key, field string, member interface{}) AtomicWriteResult
+
+	// Removes a member from a sorted hash. No conditionals are applied.
+	ZHRem(key, field string) AtomicWriteResult
 
 	// Adds a member to a set. No conditionals are applied.
 	SAdd(key string, member interface{}, members ...interface{}) AtomicWriteResult
