@@ -218,11 +218,10 @@ func (b *Backend) zhRangeByScoreWithScores(cmd, key string, start, end float64, 
 		local m = redis.call('`+cmd+`', KEYS[1], unpack(ARGV))
 		if #m == 0 then return {} end
 		local f = {}
-		local ret = {}
-		for i=1,#m/2 do f[i]=m[i*2-1]; ret[i*2]=m[i*2] end
+		for i=1,#m/2 do f[i]=m[i*2-1] end
 		local v = redis.call('hmget', KEYS[2], unpack(f))
-		for i=1,#m/2 do ret[i*2-1]=v[i] end
-		return ret
+		for i,v in pairs(v) do if v then m[i*2-1]=v end end
+		return m
 	`,
 		[]string{key, zhHashKey(key)},
 		args...,
@@ -318,7 +317,8 @@ func (b *Backend) zhRangeByLex(cmd, key string, start, end string, limit int) ([
 	result, err := b.Client.Eval(`
 		local f = redis.call('`+cmd+`', KEYS[1], unpack(ARGV))
 		if #f == 0 then return {} end
-		return redis.call('hmget', KEYS[2], unpack(f))
+		for i,v in pairs(redis.call('hmget', KEYS[2], unpack(f))) do if v then f[i] = v end end
+		return f
 	`,
 		[]string{key, zhHashKey(key)},
 		args...,

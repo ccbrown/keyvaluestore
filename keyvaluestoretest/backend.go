@@ -939,6 +939,19 @@ func TestBackend(t *testing.T, newBackend func() keyvaluestore.Backend) {
 			})
 		})
 
+		// to make migrations easier, zhrange functions should also return zadded members since it
+		// doesn't really cost us anything
+		t.Run("ZAddMigration", func(t *testing.T) {
+			assert.NoError(t, b.ZAdd("zaddtest", "a", 0.0))
+			assert.NoError(t, b.ZHAdd("zaddtest", "b", "bob", 0.0))
+			assert.NoError(t, b.ZAdd("zaddtest", "c", 0.0))
+			assert.NoError(t, b.ZHAdd("zaddtest", "d", "dan", 0.0))
+
+			members, err := b.ZHRangeByScore("zaddtest", -0.5, 1.0, 0)
+			assert.NoError(t, err)
+			assert.Equal(t, []string{"a", "bob", "c", "dan"}, members)
+		})
+
 		t.Run("Update", func(t *testing.T) {
 			assert.NoError(t, b.ZHAdd("update-test", "f", "foo", 2.0))
 
@@ -1089,6 +1102,19 @@ func TestBackend(t *testing.T, newBackend func() keyvaluestore.Backend) {
 			members, err := b.ZHRangeByLex("foo", "[q", "[q", 1)
 			assert.NoError(t, err)
 			assert.Empty(t, members)
+		})
+
+		// to make migrations easier, zhrange functions should also return zadded members since it
+		// doesn't really cost us anything
+		t.Run("ZAddMigration", func(t *testing.T) {
+			assert.NoError(t, b.ZAdd("zaddtest", "a", 0.0))
+			assert.NoError(t, b.ZHAdd("zaddtest", "b", "bob", 0.0))
+			assert.NoError(t, b.ZAdd("zaddtest", "c", 0.0))
+			assert.NoError(t, b.ZHAdd("zaddtest", "d", "dan", 0.0))
+
+			members, err := b.ZHRangeByLex("zaddtest", "-", "+", 0)
+			assert.NoError(t, err)
+			assert.Equal(t, []string{"a", "bob", "c", "dan"}, members)
 		})
 
 		t.Run("Rev", func(t *testing.T) {
