@@ -334,22 +334,16 @@ func (b *Backend) zhadd(key, field string, member interface{}, f func(previousSc
 }
 
 func (b *Backend) ZAdd(key string, member interface{}, score float64) error {
-	b.mutex.Lock()
-	defer b.mutex.Unlock()
-
 	s := *keyvaluestore.ToString(member)
-	_, err := b.zhadd(key, s, s, func(previousScore *float64) (float64, error) {
-		return score, nil
-	})
-	return err
+	return b.ZHAdd(key, s, s, score)
 }
 
-func (b *Backend) ZHAdd(key, field string, member interface{}) error {
+func (b *Backend) ZHAdd(key, field string, member interface{}, score float64) error {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 
 	_, err := b.zhadd(key, field, member, func(previousScore *float64) (float64, error) {
-		return 0.0, nil
+		return score, nil
 	})
 	return err
 }
@@ -427,11 +421,19 @@ func (b *Backend) ZRangeByScore(key string, min, max float64, limit int) ([]stri
 	}
 }
 
+func (b *Backend) ZHRangeByScore(key string, min, max float64, limit int) ([]string, error) {
+	return b.ZRangeByScore(key, min, max, limit)
+}
+
 func (b *Backend) ZRangeByScoreWithScores(key string, min, max float64, limit int) (keyvaluestore.ScoredMembers, error) {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 
 	return b.zRangeByScoreWithScores(key, min, max, limit)
+}
+
+func (b *Backend) ZHRangeByScoreWithScores(key string, min, max float64, limit int) (keyvaluestore.ScoredMembers, error) {
+	return b.ZRangeByScoreWithScores(key, min, max, limit)
 }
 
 func (b *Backend) zRangeByScoreWithScores(key string, min, max float64, limit int) (keyvaluestore.ScoredMembers, error) {
@@ -474,11 +476,19 @@ func (b *Backend) ZRevRangeByScore(key string, min, max float64, limit int) ([]s
 	}
 }
 
+func (b *Backend) ZHRevRangeByScore(key string, min, max float64, limit int) ([]string, error) {
+	return b.ZRevRangeByScore(key, min, max, limit)
+}
+
 func (b *Backend) ZRevRangeByScoreWithScores(key string, min, max float64, limit int) (keyvaluestore.ScoredMembers, error) {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 
 	return b.zRevRangeByScoreWithScores(key, min, max, limit)
+}
+
+func (b *Backend) ZHRevRangeByScoreWithScores(key string, min, max float64, limit int) (keyvaluestore.ScoredMembers, error) {
+	return b.ZRevRangeByScoreWithScores(key, min, max, limit)
 }
 
 func (b *Backend) zRevRangeByScoreWithScores(key string, min, max float64, limit int) (keyvaluestore.ScoredMembers, error) {

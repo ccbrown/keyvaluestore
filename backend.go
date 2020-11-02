@@ -107,10 +107,22 @@ type Backend interface {
 	// lexicographically sorting members.
 	//
 	// With DynamoDB, the field is limited to approximately 1024 bytes while the member is not.
-	ZHAdd(key, field string, member interface{}) error
+	ZHAdd(key, field string, member interface{}, score float64) error
 
 	// Remove from a sorted hash.
 	ZHRem(key, field string) error
+
+	// Get members of a sorted hash by ascending score.
+	ZHRangeByScore(key string, min, max float64, limit int) ([]string, error)
+
+	// Get members (and their scores) of a sorted hash by ascending score.
+	ZHRangeByScoreWithScores(key string, min, max float64, limit int) (ScoredMembers, error)
+
+	// Get members of a sorted hash by descending score.
+	ZHRevRangeByScore(key string, min, max float64, limit int) ([]string, error)
+
+	// Get members (and their scores) of a sorted hash by descending score.
+	ZHRevRangeByScoreWithScores(key string, min, max float64, limit int) (ScoredMembers, error)
 
 	// Get members of a sorted hash by their fields' lexicographical order. All members of the set
 	// must have been added with a zero score. min and max must begin with '(' or '[' to indicate

@@ -258,8 +258,8 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 
 		tx := b.AtomicWrite()
 		defer assertConditionFail(t, tx.SetNX("zhashcond", "foo"))
-		defer assertConditionPass(t, tx.ZHAdd("zhash", "f", "foo"))
-		defer assertConditionPass(t, tx.ZHAdd("zhash", "b", "bar"))
+		defer assertConditionPass(t, tx.ZHAdd("zhash", "f", "foo", 0.0))
+		defer assertConditionPass(t, tx.ZHAdd("zhash", "b", "bar", 0.0))
 		ok, err := tx.Exec()
 		assert.NoError(t, err)
 		assert.False(t, ok)
@@ -269,8 +269,8 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		assert.Equal(t, 0, count)
 
 		tx = b.AtomicWrite()
-		defer assertConditionPass(t, tx.ZHAdd("zhash", "f", "foo"))
-		defer assertConditionPass(t, tx.ZHAdd("zhash", "b", "bar"))
+		defer assertConditionPass(t, tx.ZHAdd("zhash", "f", "foo", 0.0))
+		defer assertConditionPass(t, tx.ZHAdd("zhash", "b", "bar", 0.0))
 		ok, err = tx.Exec()
 		assert.NoError(t, err)
 		assert.True(t, ok)
@@ -803,6 +803,23 @@ func TestBackend(t *testing.T, newBackend func() keyvaluestore.Backend) {
 		assert.Equal(t, []string{"b"}, members)
 	})
 
+	t.Run("ZHRem", func(t *testing.T) {
+		b := newBackend()
+
+		assert.NoError(t, b.ZHAdd("foo", "f", "foo", 1.0))
+		assert.NoError(t, b.ZHAdd("foo", "b", "bar", 2.0))
+
+		members, err := b.ZHRangeByScore("foo", 0.0, 10.0, 0)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"foo", "bar"}, members)
+
+		assert.NoError(t, b.ZHRem("foo", "b"))
+
+		members, err = b.ZHRangeByLex("foo", "-", "+", 0)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"foo"}, members)
+	})
+
 	t.Run("ZRangeByScore", func(t *testing.T) {
 		b := newBackend()
 
@@ -869,6 +886,75 @@ func TestBackend(t *testing.T, newBackend func() keyvaluestore.Backend) {
 			members, err = b.ZRangeByScore("update-test", 2.5, 3.5, 0)
 			assert.NoError(t, err)
 			assert.Equal(t, []string{"foo"}, members)
+		})
+	})
+
+	t.Run("ZHRangeByScore", func(t *testing.T) {
+		b := newBackend()
+
+		assert.NoError(t, b.ZHAdd("foo", "a", "-2", -2.0))
+		assert.NoError(t, b.ZHAdd("foo", "b", "-1", -1.0))
+		assert.NoError(t, b.ZHAdd("foo", "c", "-0.5", -0.5))
+		assert.NoError(t, b.ZHAdd("foo", "d", "0", 0.0))
+		assert.NoError(t, b.ZHAdd("foo", "e", "0.5", 0.5))
+		assert.NoError(t, b.ZHAdd("foo", "f", "0.5b", 0.5))
+		assert.NoError(t, b.ZHAdd("foo", "g", "1", 1.0))
+		assert.NoError(t, b.ZHAdd("foo", "h", "2", 2.0))
+
+		t.Run("MinMax", func(t *testing.T) {
+			members, err := b.ZHRangeByScore("foo", -0.5, 1.0, 0)
+			assert.NoError(t, err)
+			assert.Equal(t, []string{"-0.5", "0", "0.5", "0.5b", "1"}, members)
+		})
+
+		t.Run("-Inf", func(t *testing.T) {
+			members, err := b.ZHRangeByScore("foo", math.Inf(-1), 1, 0)
+			assert.NoError(t, err)
+			assert.Equal(t, []string{"-2", "-1", "-0.5", "0", "0.5", "0.5b", "1"}, members)
+		})
+
+		t.Run("+Inf", func(t *testing.T) {
+			members, err := b.ZHRangeByScore("foo", -0.5, math.Inf(1), 0)
+			assert.NoError(t, err)
+			assert.Equal(t, []string{"-0.5", "0", "0.5", "0.5b", "1", "2"}, members)
+		})
+
+		t.Run("Rev", func(t *testing.T) {
+			t.Run("MinMax", func(t *testing.T) {
+				members, err := b.ZHRevRangeByScore("foo", -0.5, 1.0, 0)
+				assert.NoError(t, err)
+				assert.Equal(t, []string{"1", "0.5b", "0.5", "0", "-0.5"}, members)
+			})
+
+			t.Run("-Inf", func(t *testing.T) {
+				members, err := b.ZHRevRangeByScore("foo", math.Inf(-1), 1, 0)
+				assert.NoError(t, err)
+				assert.Equal(t, []string{"1", "0.5b", "0.5", "0", "-0.5", "-1", "-2"}, members)
+			})
+
+			t.Run("+Inf", func(t *testing.T) {
+				members, err := b.ZHRevRangeByScore("foo", -0.5, math.Inf(1), 0)
+				assert.NoError(t, err)
+				assert.Equal(t, []string{"2", "1", "0.5b", "0.5", "0", "-0.5"}, members)
+			})
+		})
+
+		t.Run("Update", func(t *testing.T) {
+			assert.NoError(t, b.ZHAdd("update-test", "f", "foo", 2.0))
+
+			members, err := b.ZHRangeByScore("update-test", 1.5, 2.5, 0)
+			assert.NoError(t, err)
+			assert.Equal(t, []string{"foo"}, members)
+
+			assert.NoError(t, b.ZHAdd("update-test", "f", "bar", 3.0))
+
+			members, err = b.ZHRangeByScore("update-test", 1.5, 2.5, 0)
+			assert.NoError(t, err)
+			assert.Empty(t, members)
+
+			members, err = b.ZHRangeByScore("update-test", 2.5, 3.5, 0)
+			assert.NoError(t, err)
+			assert.Equal(t, []string{"bar"}, members)
 		})
 	})
 
@@ -958,10 +1044,10 @@ func TestBackend(t *testing.T, newBackend func() keyvaluestore.Backend) {
 	t.Run("ZHRangeByLex", func(t *testing.T) {
 		b := newBackend()
 
-		assert.NoError(t, b.ZHAdd("foo", "w", "alice"))
-		assert.NoError(t, b.ZHAdd("foo", "x", "bob"))
-		assert.NoError(t, b.ZHAdd("foo", "y", "carol"))
-		assert.NoError(t, b.ZHAdd("foo", "z", "dan"))
+		assert.NoError(t, b.ZHAdd("foo", "w", "alice", 0.0))
+		assert.NoError(t, b.ZHAdd("foo", "x", "bob", 0.0))
+		assert.NoError(t, b.ZHAdd("foo", "y", "carol", 0.0))
+		assert.NoError(t, b.ZHAdd("foo", "z", "dan", 0.0))
 
 		t.Run("Inf", func(t *testing.T) {
 			members, err := b.ZHRangeByLex("foo", "-", "+", 0)

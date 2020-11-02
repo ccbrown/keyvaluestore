@@ -49,9 +49,9 @@ func (op *readCacheAtomicWriteOperation) ZAdd(key string, member interface{}, sc
 	return op.atomicWrite.ZAdd(key, member, score)
 }
 
-func (op *readCacheAtomicWriteOperation) ZHAdd(key, field string, member interface{}) keyvaluestore.AtomicWriteResult {
+func (op *readCacheAtomicWriteOperation) ZHAdd(key, field string, member interface{}, score float64) keyvaluestore.AtomicWriteResult {
 	op.invalidations = append(op.invalidations, key)
-	return op.atomicWrite.ZHAdd(key, field, member)
+	return op.atomicWrite.ZHAdd(key, field, member, score)
 }
 
 func (op *readCacheAtomicWriteOperation) ZAddNX(key string, member interface{}, score float64) keyvaluestore.AtomicWriteResult {

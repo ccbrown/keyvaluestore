@@ -51,7 +51,7 @@ type AtomicWriteOperation interface {
 	// With DynamoDB, the field is limited to approximately 1024 bytes while the member is not.
 	//
 	// No conditionals are applied.
-	ZHAdd(key, field string, member interface{}) AtomicWriteResult
+	ZHAdd(key, field string, member interface{}, score float64) AtomicWriteResult
 
 	// Removes a member from a sorted hash. No conditionals are applied.
 	ZHRem(key, field string) AtomicWriteResult

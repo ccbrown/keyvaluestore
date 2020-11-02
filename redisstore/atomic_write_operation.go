@@ -16,7 +16,7 @@ type AtomicWriteOperation struct {
 }
 
 type atomicWriteOperation struct {
-	key       string
+	keys      []string
 	condition string
 	write     string
 	args      []interface{}
@@ -35,105 +35,107 @@ func (op *AtomicWriteOperation) write(wOp *atomicWriteOperation) keyvaluestore.A
 
 func (op *AtomicWriteOperation) Set(key string, value interface{}) keyvaluestore.AtomicWriteResult {
 	return op.write(&atomicWriteOperation{
-		key:       key,
+		keys:      []string{key},
 		condition: "true",
-		write:     "redis.call('set', $@, $0)",
+		write:     "redis.call('set', @0, $0)",
 		args:      []interface{}{value},
 	})
 }
 
 func (op *AtomicWriteOperation) SetNX(key string, value interface{}) keyvaluestore.AtomicWriteResult {
 	return op.write(&atomicWriteOperation{
-		key:       key,
-		condition: "redis.call('exists', $@) == 0",
-		write:     "redis.call('set', $@, $0)",
+		keys:      []string{key},
+		condition: "redis.call('exists', @0) == 0",
+		write:     "redis.call('set', @0, $0)",
 		args:      []interface{}{value},
 	})
 }
 
 func (op *AtomicWriteOperation) SetXX(key string, value interface{}) keyvaluestore.AtomicWriteResult {
 	return op.write(&atomicWriteOperation{
-		key:       key,
-		condition: "redis.call('exists', $@) == 1",
-		write:     "redis.call('set', $@, $0)",
+		keys:      []string{key},
+		condition: "redis.call('exists', @0) == 1",
+		write:     "redis.call('set', @0, $0)",
 		args:      []interface{}{value},
 	})
 }
 
 func (op *AtomicWriteOperation) SetEQ(key string, value, oldValue interface{}) keyvaluestore.AtomicWriteResult {
 	return op.write(&atomicWriteOperation{
-		key:       key,
-		condition: "redis.call('get', $@) == $0",
-		write:     "redis.call('set', $@, $1)",
+		keys:      []string{key},
+		condition: "redis.call('get', @0) == $0",
+		write:     "redis.call('set', @0, $1)",
 		args:      []interface{}{oldValue, value},
 	})
 }
 
 func (op *AtomicWriteOperation) Delete(key string) keyvaluestore.AtomicWriteResult {
 	return op.write(&atomicWriteOperation{
-		key:       key,
+		keys:      []string{key},
 		condition: "true",
-		write:     "redis.call('del', $@)",
+		write:     "redis.call('del', @0)",
 	})
 }
 
 func (op *AtomicWriteOperation) DeleteXX(key string) keyvaluestore.AtomicWriteResult {
 	return op.write(&atomicWriteOperation{
-		key:       key,
-		condition: "redis.call('exists', $@) == 1",
-		write:     "redis.call('del', $@)",
+		keys:      []string{key},
+		condition: "redis.call('exists', @0) == 1",
+		write:     "redis.call('del', @0)",
 	})
 }
 
 func (op *AtomicWriteOperation) IncrBy(key string, n int64) keyvaluestore.AtomicWriteResult {
 	return op.write(&atomicWriteOperation{
-		key:       key,
+		keys:      []string{key},
 		condition: "true",
-		write:     "redis.call('incrby', $@, $0)",
+		write:     "redis.call('incrby', @0, $0)",
 		args:      []interface{}{n},
 	})
 }
 
 func (op *AtomicWriteOperation) ZAdd(key string, member interface{}, score float64) keyvaluestore.AtomicWriteResult {
 	return op.write(&atomicWriteOperation{
-		key:       key,
+		keys:      []string{key},
 		condition: "true",
-		write:     "redis.call('zadd', $@, $1, $0)",
+		write:     "redis.call('zadd', @0, $1, $0)",
 		args:      []interface{}{member, score},
 	})
 }
 
-func (op *AtomicWriteOperation) ZHAdd(key, field string, member interface{}) keyvaluestore.AtomicWriteResult {
-	s := *keyvaluestore.ToString(member)
-	return op.ZAdd(key, encodeZHField(field, true)+s, 0.0)
+func (op *AtomicWriteOperation) ZHAdd(key, field string, member interface{}, score float64) keyvaluestore.AtomicWriteResult {
+	return op.write(&atomicWriteOperation{
+		keys:      []string{key, zhHashKey(key)},
+		condition: "true",
+		write:     "redis.call('zadd', @0, $1, $0)\nredis.call('hset', @1, $0, $2)",
+		args:      []interface{}{field, score, member},
+	})
 }
 
 func (op *AtomicWriteOperation) ZAddNX(key string, member interface{}, score float64) keyvaluestore.AtomicWriteResult {
 	return op.write(&atomicWriteOperation{
-		key:       key,
-		condition: "redis.call('zscore', $@, $0) == false",
-		write:     "redis.call('zadd', $@, $1, $0)",
+		keys:      []string{key},
+		condition: "redis.call('zscore', @0, $0) == false",
+		write:     "redis.call('zadd', @0, $1, $0)",
 		args:      []interface{}{member, score},
 	})
 }
 
 func (op *AtomicWriteOperation) ZRem(key string, member interface{}) keyvaluestore.AtomicWriteResult {
 	return op.write(&atomicWriteOperation{
-		key:       key,
+		keys:      []string{key},
 		condition: "true",
-		write:     "redis.call('zrem', $@, $0)",
+		write:     "redis.call('zrem', @0, $0)",
 		args:      []interface{}{member},
 	})
 }
 
 func (op *AtomicWriteOperation) ZHRem(key, field string) keyvaluestore.AtomicWriteResult {
-	min := "[" + encodeZHField(field, true)
-	max := "(" + encodeZHField(field, false)
 	return op.write(&atomicWriteOperation{
-		key:       key,
+		keys:      []string{key, zhHashKey(key)},
 		condition: "true",
-		write:     "redis.call('zremrangebylex', $@, $0, $1)",
-		args:      []interface{}{min, max},
+		write:     "redis.call('zrem', @0, $0)\nredis.call('hdel', @1, $0)",
+		args:      []interface{}{field},
 	})
 }
 
@@ -143,9 +145,9 @@ func (op *AtomicWriteOperation) SAdd(key string, member interface{}, members ...
 		placeholders[i] = fmt.Sprintf("$%v", i)
 	}
 	return op.write(&atomicWriteOperation{
-		key:       key,
+		keys:      []string{key},
 		condition: "true",
-		write:     "redis.call('sadd', $@, " + strings.Join(placeholders, ", ") + ")",
+		write:     "redis.call('sadd', @0, " + strings.Join(placeholders, ", ") + ")",
 		args:      append([]interface{}{member}, members...),
 	})
 }
@@ -156,9 +158,9 @@ func (op *AtomicWriteOperation) SRem(key string, member interface{}, members ...
 		placeholders[i] = fmt.Sprintf("$%v", i)
 	}
 	return op.write(&atomicWriteOperation{
-		key:       key,
+		keys:      []string{key},
 		condition: "true",
-		write:     "redis.call('srem', $@, " + strings.Join(placeholders, ", ") + ")",
+		write:     "redis.call('srem', @0, " + strings.Join(placeholders, ", ") + ")",
 		args:      append([]interface{}{member}, members...),
 	})
 }
@@ -176,18 +178,18 @@ func (op *AtomicWriteOperation) HSet(key, field string, value interface{}, field
 		args = append(args, field.Value)
 	}
 	return op.write(&atomicWriteOperation{
-		key:       key,
+		keys:      []string{key},
 		condition: "true",
-		write:     "redis.call('hset', $@, " + strings.Join(placeholders, ", ") + ")",
+		write:     "redis.call('hset', @0, " + strings.Join(placeholders, ", ") + ")",
 		args:      args,
 	})
 }
 
 func (op *AtomicWriteOperation) HSetNX(key, field string, value interface{}) keyvaluestore.AtomicWriteResult {
 	return op.write(&atomicWriteOperation{
-		key:       key,
-		condition: "redis.call('hexists', $@, $0) == 0",
-		write:     "redis.call('hset', $@, $0, $1)",
+		keys:      []string{key},
+		condition: "redis.call('hexists', @0, $0) == 0",
+		write:     "redis.call('hset', @0, $0, $1)",
 		args:      []interface{}{field, value},
 	})
 }
@@ -203,15 +205,18 @@ func (op *AtomicWriteOperation) HDel(key string, field string, fields ...string)
 		args = append(args, field)
 	}
 	return op.write(&atomicWriteOperation{
-		key:       key,
+		keys:      []string{key},
 		condition: "true",
-		write:     "redis.call('hdel', $@, " + strings.Join(placeholders, ", ") + ")",
+		write:     "redis.call('hdel', @0, " + strings.Join(placeholders, ", ") + ")",
 		args:      args,
 	})
 }
 
-func preprocessAtomicWriteExpression(in string, keyIndex, argsOffset, numArgs int) string {
-	out := strings.Replace(in, "$@", fmt.Sprintf("KEYS[%d]", keyIndex), -1)
+func preprocessAtomicWriteExpression(in string, keysOffset, numKeys int, argsOffset, numArgs int) string {
+	out := in
+	for i := numKeys - 1; i >= 0; i-- {
+		out = strings.Replace(out, fmt.Sprintf("@%d", i), fmt.Sprintf("KEYS[%d]", keysOffset+i+1), -1)
+	}
 	for i := numArgs - 1; i >= 0; i-- {
 		out = strings.Replace(out, fmt.Sprintf("$%d", i), fmt.Sprintf("ARGV[%d]", argsOffset+i+1), -1)
 	}
@@ -223,15 +228,15 @@ func (op *AtomicWriteOperation) Exec() (bool, error) {
 		return false, fmt.Errorf("max operation count exceeded")
 	}
 
-	keys := make([]string, len(op.operations))
+	var keys []string
 	var args []interface{}
 	writeExpressions := make([]string, len(op.operations))
 
 	script := []string{"local checks = {}"}
 	for i, op := range op.operations {
-		script = append(script, fmt.Sprintf("checks[%d] = %s", i+1, preprocessAtomicWriteExpression(op.condition, i+1, len(args), len(op.args))))
-		writeExpressions[i] = preprocessAtomicWriteExpression(op.write, i+1, len(args), len(op.args))
-		keys[i] = op.key
+		script = append(script, fmt.Sprintf("checks[%d] = %s", i+1, preprocessAtomicWriteExpression(op.condition, len(keys), len(op.keys), len(args), len(op.args))))
+		writeExpressions[i] = preprocessAtomicWriteExpression(op.write, len(keys), len(op.keys), len(args), len(op.args))
+		keys = append(keys, op.keys...)
 		args = append(args, op.args...)
 	}
 	script = append(script,

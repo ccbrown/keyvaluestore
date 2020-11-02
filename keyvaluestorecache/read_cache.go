@@ -225,8 +225,8 @@ func (c *ReadCache) ZAdd(key string, member interface{}, score float64) error {
 	return err
 }
 
-func (c *ReadCache) ZHAdd(key, field string, member interface{}) error {
-	err := c.backend.ZHAdd(key, field, member)
+func (c *ReadCache) ZHAdd(key, field string, member interface{}, score float64) error {
+	err := c.backend.ZHAdd(key, field, member, score)
 	c.Invalidate(key)
 	return err
 }
@@ -345,8 +345,17 @@ func (c *ReadCache) ZRangeByScore(key string, min, max float64, limit int) ([]st
 	return members.Values(), err
 }
 
+func (c *ReadCache) ZHRangeByScore(key string, min, max float64, limit int) ([]string, error) {
+	members, err := c.ZHRangeByScoreWithScores(key, min, max, limit)
+	return members.Values(), err
+}
+
 func (c *ReadCache) ZRangeByScoreWithScores(key string, min, max float64, limit int) (keyvaluestore.ScoredMembers, error) {
 	return c.zRangeByScoreWithScores("zrbs", c.backend.ZRangeByScoreWithScores, key, min, max, limit)
+}
+
+func (c *ReadCache) ZHRangeByScoreWithScores(key string, min, max float64, limit int) (keyvaluestore.ScoredMembers, error) {
+	return c.zRangeByScoreWithScores("zrbs", c.backend.ZHRangeByScoreWithScores, key, min, max, limit)
 }
 
 func (c *ReadCache) zRangeByScoreWithScores(cacheKey string, f func(string, float64, float64, int) (keyvaluestore.ScoredMembers, error), key string, min, max float64, limit int) (keyvaluestore.ScoredMembers, error) {
@@ -376,8 +385,17 @@ func (c *ReadCache) ZRevRangeByScore(key string, min, max float64, limit int) ([
 	return members.Values(), err
 }
 
+func (c *ReadCache) ZHRevRangeByScore(key string, min, max float64, limit int) ([]string, error) {
+	members, err := c.ZHRevRangeByScoreWithScores(key, min, max, limit)
+	return members.Values(), err
+}
+
 func (c *ReadCache) ZRevRangeByScoreWithScores(key string, min, max float64, limit int) (keyvaluestore.ScoredMembers, error) {
 	return c.zRangeByScoreWithScores("zrrbs", c.backend.ZRevRangeByScoreWithScores, key, min, max, limit)
+}
+
+func (c *ReadCache) ZHRevRangeByScoreWithScores(key string, min, max float64, limit int) (keyvaluestore.ScoredMembers, error) {
+	return c.zRangeByScoreWithScores("zrrbs", c.backend.ZHRevRangeByScoreWithScores, key, min, max, limit)
 }
 
 func (c *ReadCache) ZRangeByLex(key string, min, max string, limit int) ([]string, error) {

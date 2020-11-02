@@ -99,20 +99,14 @@ func (op *AtomicWriteOperation) IncrBy(key string, n int64) keyvaluestore.Atomic
 
 func (op *AtomicWriteOperation) ZAdd(key string, member interface{}, score float64) keyvaluestore.AtomicWriteResult {
 	s := *keyvaluestore.ToString(member)
-	return op.write(&atomicWriteOperation{
-		write: func() {
-			op.Backend.zhadd(key, s, s, func(previousScore *float64) (float64, error) {
-				return score, nil
-			})
-		},
-	})
+	return op.ZHAdd(key, s, s, score)
 }
 
-func (op *AtomicWriteOperation) ZHAdd(key, field string, member interface{}) keyvaluestore.AtomicWriteResult {
+func (op *AtomicWriteOperation) ZHAdd(key, field string, member interface{}, score float64) keyvaluestore.AtomicWriteResult {
 	return op.write(&atomicWriteOperation{
 		write: func() {
 			op.Backend.zhadd(key, field, member, func(previousScore *float64) (float64, error) {
-				return 0.0, nil
+				return score, nil
 			})
 		},
 	})
