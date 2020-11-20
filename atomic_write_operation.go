@@ -1,5 +1,7 @@
 package keyvaluestore
 
+import "errors"
+
 type AtomicWriteResult interface {
 	// Returns true if the transaction failed due to this operation's conditional failing.
 	ConditionalFailed() bool
@@ -8,6 +10,29 @@ type AtomicWriteResult interface {
 // DynamoDB can't do more than 25 operations in an atomic write so all backends should enforce this
 // limit.
 const MaxAtomicWriteOperations = 25
+
+// AtomicWriteConflictError happens when an atomic write fails due to contention (but not due to a
+// failed conditional). For example, in DynamoDB this error happens when a transaction fails due to
+// a TransactionConflict.
+type AtomicWriteConflictError struct {
+	Err error
+}
+
+func (e *AtomicWriteConflictError) Error() string {
+	return "atomic write conflict: " + e.Err.Error()
+}
+
+func (e *AtomicWriteConflictError) Unwrap() error {
+	return e.Err
+}
+
+// IsAtomicWriteConflict returns true when an atomic write fails due to contention (but not due to a
+// failed conditional). For example, in DynamoDB this error happens when a transaction fails due to
+// a TransactionConflict.
+func IsAtomicWriteConflict(err error) bool {
+	var conflictError *AtomicWriteConflictError
+	return errors.As(err, &conflictError)
+}
 
 type AtomicWriteOperation interface {
 	// Sets a key. No conditionals are applied.

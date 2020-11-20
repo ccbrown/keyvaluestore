@@ -306,7 +306,9 @@ func (op *AtomicWriteOperation) Exec() (bool, error) {
 			}
 
 			if hasErr || !hasConditionalCheckFailed {
-				return false, err
+				return false, &keyvaluestore.AtomicWriteConflictError{
+					Err: err,
+				}
 			}
 
 			return false, nil

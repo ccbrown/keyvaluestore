@@ -1,7 +1,7 @@
 version: '3'
 services:
   dev:
-    image: golang:1.13
+    image: golang:1.15
     environment:
       GO111MODULE: 'on'
       DYNAMODB_ENDPOINT: http://dynamodb.local:8000
