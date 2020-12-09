@@ -14,12 +14,6 @@ type Backend struct {
 	Client *redis.Client
 }
 
-func (b *Backend) WithProfiler(profiler Profiler) *Backend {
-	return &Backend{
-		Client: ProfileClient(b.Client, profiler),
-	}
-}
-
 func (b *Backend) Batch() keyvaluestore.BatchOperation {
 	return &BatchOperation{
 		b.Client.Pipeline(),
@@ -344,4 +338,21 @@ func (b *Backend) ZRevRangeByLex(key string, min, max string, limit int) ([]stri
 
 func (b *Backend) ZHRevRangeByLex(key string, min, max string, limit int) ([]string, error) {
 	return b.zhRangeByLex("zrevrangebylex", key, max, min, limit)
+}
+
+func (b *Backend) WithProfiler(profiler interface{}) keyvaluestore.Backend {
+	if p, ok := profiler.(Profiler); ok {
+		return &Backend{
+			Client: ProfileClient(b.Client, p),
+		}
+	}
+	return b
+}
+
+func (b *Backend) WithEventuallyConsistentReads() keyvaluestore.Backend {
+	return b
+}
+
+func (b *Backend) Unwrap() keyvaluestore.Backend {
+	return nil
 }

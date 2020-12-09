@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/ccbrown/keyvaluestore"
+	"github.com/ccbrown/keyvaluestore/keyvaluestoreinvalidator"
 )
 
 // Read cache caches reads permanently, or until they're invalidated by a write operation on the
@@ -28,6 +29,10 @@ func NewReadCache(b keyvaluestore.Backend) *ReadCache {
 	}
 }
 
+func (c *ReadCache) Backend() keyvaluestore.Backend {
+	return c.backend
+}
+
 // Returns a new ReadCache that shares the receiver's underlying cache.
 func (c *ReadCache) WithBackend(b keyvaluestore.Backend) *ReadCache {
 	ret := *c
@@ -39,13 +44,19 @@ func (c *ReadCache) WithBackend(b keyvaluestore.Backend) *ReadCache {
 // will not impact the reads of ancestors with strong consistency. Additionally, the cache will take
 // advantage of the fact that items that would have been invalidated by writes may still be returned
 // for eventually consistent reads.
-func (c *ReadCache) WithEventuallyConsistentReads() *ReadCache {
+func (c *ReadCache) WithEventuallyConsistentReads() keyvaluestore.Backend {
 	if c.eventuallyConsistentReads {
 		return c
 	}
 	ret := *c
 	ret.eventuallyConsistentReads = true
+	ret.backend = c.backend.WithEventuallyConsistentReads()
 	return &ret
+}
+
+func (c ReadCache) WithProfiler(profiler interface{}) keyvaluestore.Backend {
+	c.backend = c.backend.WithProfiler(profiler)
+	return &c
 }
 
 func (c *ReadCache) load(key string) (interface{}, bool) {
@@ -64,10 +75,10 @@ func (c *ReadCache) store(key string, value interface{}) {
 }
 
 func (c *ReadCache) AtomicWrite() keyvaluestore.AtomicWriteOperation {
-	return &readCacheAtomicWriteOperation{
-		ReadCache:   c,
-		atomicWrite: c.backend.AtomicWrite(),
-	}
+	return (&keyvaluestoreinvalidator.Invalidator{
+		Backend:    c.backend,
+		Invalidate: c.Invalidate,
+	}).AtomicWrite()
 }
 
 func (c *ReadCache) Batch() keyvaluestore.BatchOperation {
@@ -443,8 +454,20 @@ func (c *ReadCache) ZHRevRangeByLex(key string, min, max string, limit int) ([]s
 	return c.zRangeByLex("zrrbl", c.backend.ZHRevRangeByLex, key, min, max, limit)
 }
 
+func (c *ReadCache) HasKeyCached(key string) bool {
+	_, ok := c.cache.Load(key)
+	return ok
+}
+
 func (c *ReadCache) Invalidate(key string) {
 	c.cache.Delete(key)
+}
+
+func (c *ReadCache) InvalidateAll() {
+	c.cache.Range(func(key, value interface{}) bool {
+		c.cache.Delete(key)
+		return true
+	})
 }
 
 func concatKeys(s ...string) string {
@@ -462,4 +485,8 @@ func concatKeys(s ...string) string {
 		dest = dest[8+len(s):]
 	}
 	return string(ret)
+}
+
+func (c *ReadCache) Unwrap() keyvaluestore.Backend {
+	return c.backend
 }

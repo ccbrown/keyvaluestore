@@ -23,16 +23,22 @@ type Backend struct {
 	AllowEventuallyConsistentReads bool
 }
 
-func (b *Backend) WithProfiler(profiler Profiler) *Backend {
-	ret := *b
-	ret.Client = &ProfilingBackendClient{
-		Client:   b.Client,
-		Profiler: profiler,
+func (b *Backend) WithProfiler(profiler interface{}) keyvaluestore.Backend {
+	if p, ok := profiler.(Profiler); ok {
+		ret := *b
+		ret.Client = &ProfilingBackendClient{
+			Client:   b.Client,
+			Profiler: p,
+		}
+		return &ret
 	}
-	return &ret
+	return b
 }
 
-func (b *Backend) WithEventuallyConsistentReads() *Backend {
+func (b *Backend) WithEventuallyConsistentReads() keyvaluestore.Backend {
+	if b.AllowEventuallyConsistentReads {
+		return b
+	}
 	ret := *b
 	ret.AllowEventuallyConsistentReads = true
 	return &ret
@@ -890,4 +896,8 @@ func createDefaultTable(client *dynamodb.DynamoDB, tableName string, tryPayPerRe
 		return createDefaultTable(client, tableName, false)
 	}
 	return err
+}
+
+func (b *Backend) Unwrap() keyvaluestore.Backend {
+	return nil
 }

@@ -619,3 +619,15 @@ func (b *Backend) ZRevRangeByLex(key string, min, max string, limit int) ([]stri
 func (b *Backend) ZHRevRangeByLex(key string, min, max string, limit int) ([]string, error) {
 	return b.ZRevRangeByLex(key, min, max, limit)
 }
+
+func (b *Backend) WithEventuallyConsistentReads() keyvaluestore.Backend {
+	return b
+}
+
+func (b *Backend) WithProfiler(profiler interface{}) keyvaluestore.Backend {
+	return b
+}
+
+func (b *Backend) Unwrap() keyvaluestore.Backend {
+	return nil
+}

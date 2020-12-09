@@ -135,6 +135,18 @@ type Backend interface {
 	// indicate exclusive or inclusive. Alternatively, min can be "-" and max can be "+" to
 	// represent infinities.
 	ZHRevRangeByLex(key string, min, max string, limit int) ([]string, error)
+
+	// For performance improvements you may wish to enable eventually consistent reads for backends
+	// that support it.
+	WithEventuallyConsistentReads() Backend
+
+	// Some backends support metrics via profilers. See the Profiler interfaces in the specific
+	// implementation packages.
+	WithProfiler(profiler interface{}) Backend
+
+	// If the backend wraps another (e.g. a read cache that wraps a redis backend), this returns the
+	// wrapped backend.
+	Unwrap() Backend
 }
 
 type ScoredMembers []*ScoredMember
