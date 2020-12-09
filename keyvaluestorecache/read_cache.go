@@ -29,10 +29,6 @@ func NewReadCache(b keyvaluestore.Backend) *ReadCache {
 	}
 }
 
-func (c *ReadCache) Backend() keyvaluestore.Backend {
-	return c.backend
-}
-
 // Returns a new ReadCache that shares the receiver's underlying cache.
 func (c *ReadCache) WithBackend(b keyvaluestore.Backend) *ReadCache {
 	ret := *c
