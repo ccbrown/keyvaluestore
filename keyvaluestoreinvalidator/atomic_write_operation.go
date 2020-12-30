@@ -95,10 +95,10 @@ func (op *atomicWriteOperation) HDel(key, field string, fields ...string) keyval
 
 func (op *atomicWriteOperation) Exec() (bool, error) {
 	ret, err := op.atomicWrite.Exec()
-	if err != nil || ret {
-		for _, key := range op.invalidations {
-			op.invalidator.Invalidate(key)
-		}
+	// invalidate everything, always. if the transaction wasn't committed, one of the values
+	// probably wasn't what the client was expecting and they may want to refetch it and try again
+	for _, key := range op.invalidations {
+		op.invalidator.Invalidate(key)
 	}
 	return ret, err
 }
