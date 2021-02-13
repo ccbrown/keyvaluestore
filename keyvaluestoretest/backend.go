@@ -64,7 +64,7 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		defer assertConditionPass(t, tx.SetNX("notset", "bar"))
 		defer assertConditionPass(t, tx.SetNX("notset2", "bar2"))
 		ok, err = tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, ok)
 
 		v, err := b.Get("notset")
@@ -85,7 +85,7 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		tx := b.AtomicWrite()
 		defer assertConditionFail(t, tx.SetXX("notset", "bar"))
 		ok, err := tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, ok)
 
 		tx = b.AtomicWrite()
@@ -116,7 +116,7 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		defer assertConditionFail(t, tx.SetNX("foo", "bar"))
 		tx.Delete("deleteme")
 		ok, err := tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, ok)
 
 		got, err := b.Get("deleteme")
@@ -127,7 +127,7 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		defer assertConditionPass(t, tx.SetNX("notset", "bar"))
 		tx.Delete("deleteme")
 		ok, err = tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, ok)
 
 		got, err = b.Get("deleteme")
@@ -145,7 +145,7 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		defer assertConditionFail(t, tx.DeleteXX("notset"))
 		tx.Delete("deleteme")
 		ok, err := tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, ok)
 
 		got, err := b.Get("deleteme")
@@ -156,7 +156,7 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		defer assertConditionPass(t, tx.DeleteXX("foo"))
 		tx.Delete("deleteme")
 		ok, err = tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, ok)
 
 		got, err = b.Get("deleteme")
@@ -173,7 +173,7 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		defer assertConditionFail(t, tx.SetNX("foo", "bar"))
 		tx.IncrBy("n", 1)
 		ok, err := tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, ok)
 
 		got, err := b.Get("n")
@@ -184,7 +184,7 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		defer assertConditionPass(t, tx.SetNX("notset", "baz"))
 		tx.IncrBy("n", 1)
 		ok, err = tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, ok)
 
 		got, err = b.Get("n")
@@ -203,14 +203,14 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		defer assertConditionFail(t, tx.SetEQ("foo", 2, 100))
 		defer assertConditionPass(t, tx.SetNX("notset", "bar"))
 		ok, err := tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, ok)
 
 		tx = b.AtomicWrite()
 		defer assertConditionPass(t, tx.SetEQ("foo", 2, 1))
 		defer assertConditionPass(t, tx.SetNX("notset", "bar"))
 		ok, err = tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, ok)
 	})
 
@@ -222,7 +222,7 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		defer assertConditionPass(t, tx.ZAdd("zset", "foo", 1.0))
 		defer assertConditionPass(t, tx.ZAdd("zset", "bar", 2.0))
 		ok, err := tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, ok)
 
 		count, err := b.ZCount("zset", 0.0, 10.0)
@@ -233,7 +233,7 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		defer assertConditionPass(t, tx.ZAdd("zset", "foo", 1.0))
 		defer assertConditionPass(t, tx.ZAdd("zset", "bar", 2.0))
 		ok, err = tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, ok)
 
 		count, err = b.ZCount("zset", 0.0, 10.0)
@@ -261,7 +261,7 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		defer assertConditionPass(t, tx.ZHAdd("zhash", "f", "foo", 0.0))
 		defer assertConditionPass(t, tx.ZHAdd("zhash", "b", "bar", 0.0))
 		ok, err := tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, ok)
 
 		count, err := b.ZCount("zhash", 0.0, 10.0)
@@ -272,7 +272,7 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		defer assertConditionPass(t, tx.ZHAdd("zhash", "f", "foo", 0.0))
 		defer assertConditionPass(t, tx.ZHAdd("zhash", "b", "bar", 0.0))
 		ok, err = tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, ok)
 
 		count, err = b.ZCount("zhash", 0.0, 10.0)
@@ -300,14 +300,14 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		defer assertConditionPass(t, tx.ZAddNX("zset", "foo", 0.0))
 		defer assertConditionPass(t, tx.ZAddNX("zset", "bar", 0.0))
 		ok, err := tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, ok)
 
 		tx = b.AtomicWrite()
 		defer assertConditionPass(t, tx.ZAddNX("zset", "baz", 0.0))
 		defer assertConditionFail(t, tx.ZAddNX("zset", "bar", 0.0))
 		ok, err = tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, ok)
 
 		tx = b.AtomicWrite()
@@ -329,13 +329,13 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		assert.False(t, ok)
 
 		members, err := b.SMembers("set")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Empty(t, members)
 
 		tx = b.AtomicWrite()
 		defer assertConditionPass(t, tx.SAdd("set", "foo", "bar"))
 		ok, err = tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, ok)
 
 		members, err = b.SMembers("set")
@@ -346,7 +346,7 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 			tx = b.AtomicWrite()
 			defer assertConditionPass(t, tx.SRem("set", "foo"))
 			ok, err = tx.Exec()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.True(t, ok)
 
 			members, err = b.SMembers("set")
@@ -362,7 +362,7 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		defer assertConditionFail(t, tx.SetNX("setcond", "foo"))
 		defer assertConditionPass(t, tx.HSet("h", "foo", "bar"))
 		ok, err := tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, ok)
 
 		v, err := b.HGet("h", "foo")
@@ -372,11 +372,11 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		tx = b.AtomicWrite()
 		defer assertConditionPass(t, tx.HSet("h", "foo", "bar"))
 		ok, err = tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, ok)
 
 		v, err = b.HGet("h", "foo")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "bar", *v)
 	})
 
@@ -388,22 +388,22 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		defer assertConditionPass(t, tx.Set("foo", "bar"))
 		defer assertConditionPass(t, tx.HSetNX("h", "foo", "bar"))
 		ok, err := tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, ok)
 
 		v, err := b.Get("foo")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "bar", *v)
 
 		tx = b.AtomicWrite()
 		defer assertConditionPass(t, tx.Set("foo", "baz"))
 		defer assertConditionFail(t, tx.HSetNX("h", "foo", "bar"))
 		ok, err = tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, ok)
 
 		v, err = b.Get("foo")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "bar", *v)
 	})
 
@@ -415,17 +415,17 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		defer assertConditionFail(t, tx.SetNX("setcond", "foo"))
 		defer assertConditionPass(t, tx.HDel("h", "foo"))
 		ok, err := tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, ok)
 
 		v, err := b.HGet("h", "foo")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "bar", *v)
 
 		tx = b.AtomicWrite()
 		defer assertConditionPass(t, tx.HDel("h", "foo"))
 		ok, err = tx.Exec()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, ok)
 
 		v, err = b.HGet("h", "foo")
@@ -443,7 +443,7 @@ func TestBackend(t *testing.T, newBackend func() keyvaluestore.Backend) {
 
 			v, err := b.Get("foo")
 			require.NotNil(t, v)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, "bar", *v)
 		})
 	})
@@ -535,7 +535,7 @@ func TestBackend(t *testing.T, newBackend func() keyvaluestore.Backend) {
 		assert.NoError(t, err)
 
 		v, err = b.Get("foo")
-		assert.NotNil(t, v)
+		require.NotNil(t, v)
 		assert.Equal(t, "bar", *v)
 		assert.NoError(t, err)
 	})
@@ -589,7 +589,7 @@ func TestBackend(t *testing.T, newBackend func() keyvaluestore.Backend) {
 		assert.NoError(t, b.HSet("foo", "bar", "baz"))
 
 		v, err = b.HGet("foo", "bar")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, *v, "baz")
 	})
 
@@ -641,12 +641,12 @@ func TestBackend(t *testing.T, newBackend func() keyvaluestore.Backend) {
 			assert.NoError(t, batch.Exec())
 
 			v, err := get.Result()
+			require.NoError(t, err)
 			assert.Equal(t, "bar", *v)
-			assert.NoError(t, err)
 
 			v, err = get2.Result()
+			require.NoError(t, err)
 			assert.Equal(t, "bar2", *v)
-			assert.NoError(t, err)
 
 			v, err = get3.Result()
 			assert.Nil(t, v)
@@ -1313,11 +1313,16 @@ func TestBackend(t *testing.T, newBackend func() keyvaluestore.Backend) {
 				go func() {
 					defer wg.Done()
 					successful := 0
+					errorStreak := 0
 					for successful < innerLoops {
 						_, err := b.ZIncrBy("MultipleWriters", "foo", 1)
 
 						if err == nil {
 							successful++
+							errorStreak = 0
+						} else {
+							errorStreak++
+							require.Less(t, errorStreak, 100)
 						}
 					}
 				}()
