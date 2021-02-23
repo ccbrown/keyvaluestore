@@ -106,7 +106,7 @@ func (op *AtomicWriteOperation) DeleteXX(key string) keyvaluestore.AtomicWriteRe
 	})
 }
 
-func (op *AtomicWriteOperation) IncrBy(key string, n int64) keyvaluestore.AtomicWriteResult {
+func (op *AtomicWriteOperation) NIncrBy(key string, n int64) keyvaluestore.AtomicWriteResult {
 	return op.write(dynamodb.TransactWriteItem{
 		Update: &dynamodb.Update{
 			Key:              compositeKey(key, "_"),

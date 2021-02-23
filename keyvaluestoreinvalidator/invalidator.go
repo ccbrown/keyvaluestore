@@ -43,8 +43,8 @@ func (c *Invalidator) Set(key string, value interface{}) error {
 	return err
 }
 
-func (c *Invalidator) IncrBy(key string, n int64) (int64, error) {
-	n, err := c.Backend.IncrBy(key, n)
+func (c *Invalidator) NIncrBy(key string, n int64) (int64, error) {
+	n, err := c.Backend.NIncrBy(key, n)
 	c.Invalidate(key)
 	return n, err
 }

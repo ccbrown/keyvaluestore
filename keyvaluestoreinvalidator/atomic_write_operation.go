@@ -38,9 +38,9 @@ func (op *atomicWriteOperation) DeleteXX(key string) keyvaluestore.AtomicWriteRe
 	return op.atomicWrite.DeleteXX(key)
 }
 
-func (op *atomicWriteOperation) IncrBy(key string, n int64) keyvaluestore.AtomicWriteResult {
+func (op *atomicWriteOperation) NIncrBy(key string, n int64) keyvaluestore.AtomicWriteResult {
 	op.invalidations = append(op.invalidations, key)
-	return op.atomicWrite.IncrBy(key, n)
+	return op.atomicWrite.NIncrBy(key, n)
 }
 
 func (op *atomicWriteOperation) ZAdd(key string, member interface{}, score float64) keyvaluestore.AtomicWriteResult {

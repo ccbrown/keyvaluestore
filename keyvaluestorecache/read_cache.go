@@ -111,8 +111,8 @@ func (c *ReadCache) Set(key string, value interface{}) error {
 	return err
 }
 
-func (c *ReadCache) IncrBy(key string, n int64) (int64, error) {
-	n, err := c.backend.IncrBy(key, n)
+func (c *ReadCache) NIncrBy(key string, n int64) (int64, error) {
+	n, err := c.backend.NIncrBy(key, n)
 	c.Invalidate(key)
 	return n, err
 }

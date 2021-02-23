@@ -77,13 +77,13 @@ func (b *Backend) set(key string, value interface{}) {
 	b.m[key] = value
 }
 
-func (b *Backend) IncrBy(key string, n int64) (int64, error) {
+func (b *Backend) NIncrBy(key string, n int64) (int64, error) {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
-	return b.incrBy(key, n)
+	return b.nincrBy(key, n)
 }
 
-func (b *Backend) incrBy(key string, n int64) (int64, error) {
+func (b *Backend) nincrBy(key string, n int64) (int64, error) {
 	if v, ok := b.m[key]; ok {
 		if s := keyvaluestore.ToString(v); s != nil {
 			i, err := strconv.ParseInt(*s, 10, 64)

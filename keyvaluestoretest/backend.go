@@ -164,33 +164,33 @@ func TestBackendAtomicWrite(t *testing.T, newBackend func() keyvaluestore.Backen
 		assert.Nil(t, got)
 	})
 
-	t.Run("IncrBy", func(t *testing.T) {
+	t.Run("NIncrBy", func(t *testing.T) {
 		assert.NoError(t, b.Set("foo", "bar"))
 		_, err := b.Delete("notset")
 		assert.NoError(t, err)
 
 		tx := b.AtomicWrite()
 		defer assertConditionFail(t, tx.SetNX("foo", "bar"))
-		tx.IncrBy("n", 1)
+		tx.NIncrBy("n", 1)
 		ok, err := tx.Exec()
 		require.NoError(t, err)
 		assert.False(t, ok)
 
-		got, err := b.Get("n")
+		got, err := b.NIncrBy("n", 0)
 		assert.NoError(t, err)
-		assert.Nil(t, got)
+		assert.EqualValues(t, 0, got)
 
 		tx = b.AtomicWrite()
 		defer assertConditionPass(t, tx.SetNX("notset", "baz"))
-		tx.IncrBy("n", 1)
+		tx.NIncrBy("n", 1)
 		ok, err = tx.Exec()
 		require.NoError(t, err)
 		assert.True(t, ok)
 
-		got, err = b.Get("n")
+		got, err = b.NIncrBy("n", 0)
 		assert.NoError(t, err)
 		require.NotNil(t, got)
-		assert.Equal(t, "1", *got)
+		assert.EqualValues(t, 1, got)
 	})
 
 	t.Run("SetEQ", func(t *testing.T) {
@@ -448,37 +448,26 @@ func TestBackend(t *testing.T, newBackend func() keyvaluestore.Backend) {
 		})
 	})
 
-	t.Run("IncrBy", func(t *testing.T) {
+	t.Run("NIncrBy", func(t *testing.T) {
 		b := newBackend()
 
-		t.Run("New", func(t *testing.T) {
-			n, err := b.IncrBy("foo", 2)
-			assert.EqualValues(t, 2, n)
-			assert.NoError(t, err)
+		n, err := b.NIncrBy("foo", 2)
+		assert.EqualValues(t, 2, n)
+		assert.NoError(t, err)
 
-			v, err := b.Get("foo")
-			require.NotNil(t, v)
-			assert.NoError(t, err)
-			assert.Equal(t, "2", *v)
-		})
+		v, err := b.NIncrBy("foo", 0)
+		require.NotNil(t, v)
+		assert.NoError(t, err)
+		assert.EqualValues(t, 2, v)
 
-		t.Run("Existing", func(t *testing.T) {
-			assert.NoError(t, b.Set("foo", 1))
+		n, err = b.NIncrBy("foo", -1)
+		assert.EqualValues(t, 1, n)
+		assert.NoError(t, err)
 
-			v, err := b.Get("foo")
-			require.NotNil(t, v)
-			assert.NoError(t, err)
-			assert.Equal(t, "1", *v)
-
-			n, err := b.IncrBy("foo", 2)
-			assert.EqualValues(t, 3, n)
-			assert.NoError(t, err)
-
-			v, err = b.Get("foo")
-			require.NotNil(t, v)
-			assert.NoError(t, err)
-			assert.Equal(t, "3", *v)
-		})
+		v, err = b.NIncrBy("foo", 0)
+		require.NotNil(t, v)
+		assert.NoError(t, err)
+		assert.EqualValues(t, 1, v)
 	})
 
 	t.Run("Delete", func(t *testing.T) {

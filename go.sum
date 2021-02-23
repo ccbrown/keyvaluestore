@@ -1,3 +1,9 @@
+github.com/apple/foundationdb v0.0.0-20210223001042-2ca173c4b9c5 h1:Iq7eTvhF0qGt3Fh1uQZdY0LsUWOhEI7Wv5HJ/WFCha0=
+github.com/apple/foundationdb v0.0.0-20210223040215-85802507b288 h1:050OCog3htyOlqg74NYddUCIeVmg5c+XWQiGzNownIs=
+github.com/apple/foundationdb/bindings/go v0.0.0-20210223001042-2ca173c4b9c5 h1:dRlNyUnMObkns4oKw0QCgXrDkZGVL8sKJC880AJiI24=
+github.com/apple/foundationdb/bindings/go v0.0.0-20210223001042-2ca173c4b9c5/go.mod h1:OMVSB21p9+xQUIqlGizHPZfjK+SHws1ht+ZytVDoz9U=
+github.com/apple/foundationdb/bindings/go v0.0.0-20210223040215-85802507b288 h1:EByJTrMaVvxonjBBVzGBVIdKGIPFvkqJfzz2Ia6MYi4=
+github.com/apple/foundationdb/bindings/go v0.0.0-20210223040215-85802507b288/go.mod h1:w63jdZTFCtvdjsUj5yrdKgjxaAD5uXQX6hJ7EaiLFRs=
 github.com/aws/aws-sdk-go v1.29.17 h1:ygbf7/bKjFMTtyY1ERINUZX21kevbl8XzDI8jyxz93g=
 github.com/aws/aws-sdk-go v1.29.17/go.mod h1:1KvfttTE3SPKMpo8g2c6jL3ZKfXtFvKscTgahTma5Xg=
 github.com/ccbrown/go-immutable v0.0.0-20171011001311-e9015daa17c4 h1:JYkxMw7hJlXYljfs2xQcU5Jl+Fai32VxAt/K9K53ISk=
@@ -41,6 +47,9 @@ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a h1:1BGLXjeY4akVXGgbC9HugT3Jv
 golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/text v0.3.0 h1:g61tztE5qeGQ89tm6NTjjM9VPIm088od1l6aSorWRWg=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 h1:E7g+9GITq07hpfrRu66IVDexMakfv52eLZ2CXBWiKr4=
+golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/fsnotify.v1 v1.4.7 h1:xOHLXZwVvI9hhs+cLKq5+I5onOuwQLhQwiu63xxlHs4=

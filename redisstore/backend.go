@@ -45,7 +45,7 @@ func (b *Backend) Set(key string, value interface{}) error {
 	return b.Client.Set(key, value, 0).Err()
 }
 
-func (b *Backend) IncrBy(key string, n int64) (int64, error) {
+func (b *Backend) NIncrBy(key string, n int64) (int64, error) {
 	return b.Client.IncrBy(key, n).Result()
 }
 

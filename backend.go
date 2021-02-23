@@ -19,10 +19,6 @@ type Backend interface {
 	Get(key string) (*string, error)
 	Set(key string, value interface{}) error
 
-	// Increments the given key by some number. If the key doesn't exist, it's set to the given
-	// number instead.
-	IncrBy(key string, n int64) (int64, error)
-
 	// Set if the key already exists.
 	SetXX(key string, value interface{}) (bool, error)
 
@@ -31,6 +27,10 @@ type Backend interface {
 
 	// Set if the key exists and its value is equal to the given one.
 	SetEQ(key string, value, oldValue interface{}) (success bool, err error)
+
+	// Increments the number with the given key by some number. If the key doesn't exist, it's set
+	// to the given number instead. To get the current value, you can pass 0 as n.
+	NIncrBy(key string, n int64) (int64, error)
 
 	// Add to or create a set. Sets are ideal for small sizes, but have implementation-dependent
 	// size limitations (400KB for DynamoDB). For large or unbounded sets, use ZAdd instead.
