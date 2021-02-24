@@ -33,13 +33,16 @@ func (b *Backend) WithEventuallyConsistentReads() keyvaluestore.Backend {
 }
 
 func (b *Backend) AtomicWrite() keyvaluestore.AtomicWriteOperation {
-	// TODO
-	return nil
+	return &AtomicWriteOperation{
+		Backend: b,
+	}
 }
 
 func (b *Backend) Batch() keyvaluestore.BatchOperation {
-	// TODO
-	return &keyvaluestore.FallbackBatchOperation{
+	return &BatchOperation{
+		FallbackBatchOperation: &keyvaluestore.FallbackBatchOperation{
+			Backend: b,
+		},
 		Backend: b,
 	}
 }
@@ -65,33 +68,45 @@ func toBytes(v interface{}) []byte {
 }
 
 func (b *Backend) NIncrBy(key string, n int64) (int64, error) {
-	var buf [8]byte
-	binary.LittleEndian.PutUint64(buf[:], uint64(n))
-	k := b.key(key)
 	if r, err := b.Database.Transact(func(tx fdb.Transaction) (interface{}, error) {
-		tx.Add(k, buf[:])
-		return tx.Get(b.key(key)).Get()
+		return b.nIncrBy(tx, key, n)
 	}); err != nil {
 		return 0, err
 	} else {
-		return int64(binary.LittleEndian.Uint64(r.([]byte))), nil
+		return r.(int64), nil
 	}
 }
 
-func (b *Backend) Delete(key string) (bool, error) {
+func (b *Backend) nIncrBy(tx fdb.Transaction, key string, n int64) (int64, error) {
+	var buf [8]byte
+	binary.LittleEndian.PutUint64(buf[:], uint64(n))
 	k := b.key(key)
+	tx.Add(k, buf[:])
+	r, err := tx.Get(b.key(key)).Get()
+	if err != nil {
+		return 0, err
+	}
+	return int64(binary.LittleEndian.Uint64(r)), nil
+}
+
+func (b *Backend) Delete(key string) (bool, error) {
 	if didDelete, err := b.Database.Transact(func(tx fdb.Transaction) (interface{}, error) {
-		v, err := tx.Get(k).Get()
-		if err != nil || v == nil {
-			return false, err
-		}
-		tx.Clear(k)
-		return true, nil
+		return b.delete(tx, key)
 	}); err != nil {
 		return false, err
 	} else {
 		return didDelete.(bool), nil
 	}
+}
+
+func (b *Backend) delete(tx fdb.Transaction, key string) (bool, error) {
+	k := b.key(key)
+	v, err := tx.Get(k).Get()
+	if err != nil || v == nil {
+		return false, err
+	}
+	tx.Clear(k)
+	return true, nil
 }
 
 func (b *Backend) Get(key string) (*string, error) {
@@ -116,27 +131,27 @@ func (b *Backend) Set(key string, value interface{}) error {
 
 func (b *Backend) SetNX(key string, value interface{}) (bool, error) {
 	if didSet, err := b.Database.Transact(func(tx fdb.Transaction) (interface{}, error) {
-		v, err := tx.Get(b.key(key)).Get()
-		if err != nil || v != nil {
-			return false, err
-		}
-		tx.Set(b.key(key), toBytes(value))
-		return true, nil
+		return b.setNX(tx, key, value)
 	}); err != nil {
 		return false, err
 	} else {
 		return didSet.(bool), nil
 	}
+}
+
+func (b *Backend) setNX(tx fdb.Transaction, key string, value interface{}) (bool, error) {
+	k := b.key(key)
+	v, err := tx.Get(k).Get()
+	if err != nil || v != nil {
+		return false, err
+	}
+	tx.Set(k, toBytes(value))
+	return true, nil
 }
 
 func (b *Backend) SetXX(key string, value interface{}) (bool, error) {
 	if didSet, err := b.Database.Transact(func(tx fdb.Transaction) (interface{}, error) {
-		v, err := tx.Get(b.key(key)).Get()
-		if err != nil || v == nil {
-			return false, err
-		}
-		tx.Set(b.key(key), toBytes(value))
-		return true, nil
+		return b.setXX(tx, key, value)
 	}); err != nil {
 		return false, err
 	} else {
@@ -144,19 +159,34 @@ func (b *Backend) SetXX(key string, value interface{}) (bool, error) {
 	}
 }
 
+func (b *Backend) setXX(tx fdb.Transaction, key string, value interface{}) (bool, error) {
+	k := b.key(key)
+	v, err := tx.Get(k).Get()
+	if err != nil || v == nil {
+		return false, err
+	}
+	tx.Set(k, toBytes(value))
+	return true, nil
+}
+
 func (b *Backend) SetEQ(key string, value, oldValue interface{}) (bool, error) {
 	if didSet, err := b.Database.Transact(func(tx fdb.Transaction) (interface{}, error) {
-		v, err := tx.Get(b.key(key)).Get()
-		if err != nil || !bytes.Equal(v, toBytes(oldValue)) {
-			return false, err
-		}
-		tx.Set(b.key(key), toBytes(value))
-		return true, nil
+		return b.setEQ(tx, key, value, oldValue)
 	}); err != nil {
 		return false, err
 	} else {
 		return didSet.(bool), nil
 	}
+}
+
+func (b *Backend) setEQ(tx fdb.Transaction, key string, value, oldValue interface{}) (bool, error) {
+	k := b.key(key)
+	v, err := tx.Get(k).Get()
+	if err != nil || !bytes.Equal(v, toBytes(oldValue)) {
+		return false, err
+	}
+	tx.Set(k, toBytes(value))
+	return true, nil
 }
 
 func (b *Backend) SAdd(key string, member interface{}, members ...interface{}) error {
@@ -165,35 +195,49 @@ func (b *Backend) SAdd(key string, member interface{}, members ...interface{}) e
 	for _, member := range members {
 		toAdd[string(toBytes(member))] = struct{}{}
 	}
-	k := b.key(key)
 	_, err := b.Database.Transact(func(tx fdb.Transaction) (interface{}, error) {
-		b, err := tx.Get(k).Get()
-		if err != nil {
-			return nil, err
-		}
-		rem := b
-		for len(rem) > 0 {
-			l, n := binary.Uvarint(rem)
-			if n <= 0 || uint64(len(rem)) < uint64(n)+l {
-				return nil, fmt.Errorf("unable to decode set")
-			}
-			delete(toAdd, string(rem[n:n+int(l)]))
-			rem = rem[n+int(l):]
-		}
-		if len(toAdd) > 0 {
-			newValue := append([]byte(nil), b...)
-			for member := range toAdd {
-				var buf [binary.MaxVarintLen64]byte
-				b := []byte(member)
-				n := binary.PutUvarint(buf[:], uint64(len(b)))
-				newValue = append(newValue, buf[:n]...)
-				newValue = append(newValue, b...)
-			}
-			tx.Set(k, newValue)
-		}
-		return nil, nil
+		op := sAdd{B: b}
+		op.InitNonBlocking(tx, key)
+		return nil, op.Complete(tx, key, toAdd)
 	})
 	return err
+}
+
+type sAdd struct {
+	B   *Backend
+	get fdb.FutureByteSlice
+}
+
+func (op *sAdd) InitNonBlocking(tx fdb.Transaction, key string) {
+	op.get = tx.Get(op.B.key(key))
+}
+
+func (op *sAdd) Complete(tx fdb.Transaction, key string, toAdd map[string]struct{}) error {
+	v, err := op.get.Get()
+	if err != nil {
+		return err
+	}
+	rem := v
+	for len(rem) > 0 {
+		l, n := binary.Uvarint(rem)
+		if n <= 0 || uint64(len(rem)) < uint64(n)+l {
+			return fmt.Errorf("unable to decode set")
+		}
+		delete(toAdd, string(rem[n:n+int(l)]))
+		rem = rem[n+int(l):]
+	}
+	if len(toAdd) > 0 {
+		newValue := append([]byte(nil), v...)
+		for member := range toAdd {
+			var buf [binary.MaxVarintLen64]byte
+			b := []byte(member)
+			n := binary.PutUvarint(buf[:], uint64(len(b)))
+			newValue = append(newValue, buf[:n]...)
+			newValue = append(newValue, b...)
+		}
+		tx.Set(op.B.key(key), newValue)
+	}
+	return nil
 }
 
 func (b *Backend) SRem(key string, member interface{}, members ...interface{}) error {
@@ -202,30 +246,44 @@ func (b *Backend) SRem(key string, member interface{}, members ...interface{}) e
 	for _, member := range members {
 		toRem[string(toBytes(member))] = struct{}{}
 	}
-	k := b.key(key)
 	_, err := b.Database.Transact(func(tx fdb.Transaction) (interface{}, error) {
-		b, err := tx.Get(k).Get()
-		if err != nil {
-			return nil, err
-		}
-		var newValue []byte
-		rem := b
-		for len(rem) > 0 {
-			l, n := binary.Uvarint(rem)
-			if n <= 0 || uint64(len(rem)) < uint64(n)+l {
-				return nil, fmt.Errorf("unable to decode set")
-			}
-			if _, ok := toRem[string(rem[n:n+int(l)])]; !ok {
-				newValue = append(newValue, rem[:n+int(l)]...)
-			}
-			rem = rem[n+int(l):]
-		}
-		if len(newValue) < len(b) {
-			tx.Set(k, newValue)
-		}
-		return nil, nil
+		op := sRem{B: b}
+		op.InitNonBlocking(tx, key)
+		return nil, op.Complete(tx, key, toRem)
 	})
 	return err
+}
+
+type sRem struct {
+	B   *Backend
+	get fdb.FutureByteSlice
+}
+
+func (op *sRem) InitNonBlocking(tx fdb.Transaction, key string) {
+	op.get = tx.Get(op.B.key(key))
+}
+
+func (op *sRem) Complete(tx fdb.Transaction, key string, toRem map[string]struct{}) error {
+	v, err := op.get.Get()
+	if err != nil {
+		return err
+	}
+	var newValue []byte
+	rem := v
+	for len(rem) > 0 {
+		l, n := binary.Uvarint(rem)
+		if n <= 0 || uint64(len(rem)) < uint64(n)+l {
+			return fmt.Errorf("unable to decode set")
+		}
+		if _, ok := toRem[string(rem[n:n+int(l)])]; !ok {
+			newValue = append(newValue, rem[:n+int(l)]...)
+		}
+		rem = rem[n+int(l):]
+	}
+	if len(newValue) < len(v) {
+		tx.Set(op.B.key(key), newValue)
+	}
+	return nil
 }
 
 func (b *Backend) SMembers(key string) ([]string, error) {
@@ -234,18 +292,22 @@ func (b *Backend) SMembers(key string) ([]string, error) {
 	}); err != nil {
 		return nil, err
 	} else if b := r.([]byte); b != nil {
-		var ret []string
-		for len(b) > 0 {
-			l, n := binary.Uvarint(b)
-			if n <= 0 || uint64(len(b)) < uint64(n)+l {
-				return nil, fmt.Errorf("unable to decode set")
-			}
-			ret = append(ret, string(b[n:n+int(l)]))
-			b = b[n+int(l):]
-		}
-		return ret, nil
+		return parseSMembers(b)
 	}
 	return nil, nil
+}
+
+func parseSMembers(b []byte) ([]string, error) {
+	var ret []string
+	for len(b) > 0 {
+		l, n := binary.Uvarint(b)
+		if n <= 0 || uint64(len(b)) < uint64(n)+l {
+			return nil, fmt.Errorf("unable to decode set")
+		}
+		ret = append(ret, string(b[n:n+int(l)]))
+		b = b[n+int(l):]
+	}
+	return ret, nil
 }
 
 func (b *Backend) HSet(key, field string, value interface{}, fields ...keyvaluestore.KeyValue) error {
@@ -254,43 +316,94 @@ func (b *Backend) HSet(key, field string, value interface{}, fields ...keyvalues
 	for _, field := range fields {
 		toAdd[field.Key] = field.Value
 	}
-	k := b.key(key)
 	_, err := b.Database.Transact(func(tx fdb.Transaction) (interface{}, error) {
-		b, err := tx.Get(k).Get()
-		if err != nil {
-			return nil, err
-		}
-		var newValue []byte
-		rem := b
-		for len(rem) > 0 {
-			kl, kn := binary.Uvarint(rem)
-			if kn <= 0 || uint64(len(rem)) < uint64(kn)+kl {
-				return nil, fmt.Errorf("unable to decode hash")
-			}
-			vl, vn := binary.Uvarint(rem[kn+int(kl):])
-			if vn <= 0 || uint64(len(rem)) < uint64(kn+vn)+kl+vl {
-				return nil, fmt.Errorf("unable to decode hash")
-			}
-			if _, ok := toAdd[string(rem[kn:kn+int(kl)])]; !ok {
-				newValue = append(newValue, rem[:kn+vn+int(kl+vl)]...)
-			}
-			rem = rem[kn+vn+int(kl+vl):]
-		}
-		for key, value := range toAdd {
-			var buf [binary.MaxVarintLen64]byte
-			kb := []byte(key)
-			n := binary.PutUvarint(buf[:], uint64(len(kb)))
-			newValue = append(newValue, buf[:n]...)
-			newValue = append(newValue, kb...)
-			vb := toBytes(value)
-			n = binary.PutUvarint(buf[:], uint64(len(vb)))
-			newValue = append(newValue, buf[:n]...)
-			newValue = append(newValue, vb...)
-		}
-		tx.Set(k, newValue)
-		return nil, nil
+		impl := hSet{B: b}
+		impl.InitNonBlocking(tx, key)
+		return nil, impl.Complete(tx, key, toAdd)
 	})
 	return err
+}
+
+type hSet struct {
+	B   *Backend
+	get fdb.FutureByteSlice
+}
+
+func (op *hSet) InitNonBlocking(tx fdb.Transaction, key string) {
+	op.get = tx.Get(op.B.key(key))
+}
+
+func (op *hSet) Complete(tx fdb.Transaction, key string, toAdd map[string]interface{}) error {
+	v, err := op.get.Get()
+	if err != nil {
+		return err
+	}
+	var newValue []byte
+	rem := v
+	for len(rem) > 0 {
+		kl, kn := binary.Uvarint(rem)
+		if kn <= 0 || uint64(len(rem)) < uint64(kn)+kl {
+			return fmt.Errorf("unable to decode hash")
+		}
+		vl, vn := binary.Uvarint(rem[kn+int(kl):])
+		if vn <= 0 || uint64(len(rem)) < uint64(kn+vn)+kl+vl {
+			return fmt.Errorf("unable to decode hash")
+		}
+		if _, ok := toAdd[string(rem[kn:kn+int(kl)])]; !ok {
+			newValue = append(newValue, rem[:kn+vn+int(kl+vl)]...)
+		}
+		rem = rem[kn+vn+int(kl+vl):]
+	}
+	for key, value := range toAdd {
+		var buf [binary.MaxVarintLen64]byte
+		kb := []byte(key)
+		n := binary.PutUvarint(buf[:], uint64(len(kb)))
+		newValue = append(newValue, buf[:n]...)
+		newValue = append(newValue, kb...)
+		vb := toBytes(value)
+		n = binary.PutUvarint(buf[:], uint64(len(vb)))
+		newValue = append(newValue, buf[:n]...)
+		newValue = append(newValue, vb...)
+	}
+	tx.Set(op.B.key(key), newValue)
+	return nil
+}
+
+func (op *hSet) CompleteNX(tx fdb.Transaction, key, field string, value interface{}) (bool, error) {
+	v, err := op.get.Get()
+	if err != nil {
+		return false, err
+	}
+	rem := v
+	for len(rem) > 0 {
+		kl, kn := binary.Uvarint(rem)
+		if kn <= 0 || uint64(len(rem)) < uint64(kn)+kl {
+			return false, fmt.Errorf("unable to decode hash")
+		}
+		vl, vn := binary.Uvarint(rem[kn+int(kl):])
+		if vn <= 0 || uint64(len(rem)) < uint64(kn+vn)+kl+vl {
+			return false, fmt.Errorf("unable to decode hash")
+		}
+		if string(rem[kn:kn+int(kl)]) == field {
+			return false, nil
+		}
+		rem = rem[kn+vn+int(kl+vl):]
+	}
+
+	var buf [binary.MaxVarintLen64]byte
+	kb := []byte(field)
+	n := binary.PutUvarint(buf[:], uint64(len(kb)))
+	vb := toBytes(value)
+	newValue := make([]byte, len(v)+16+len(kb)+len(vb))
+	newValue = append(newValue, v...)
+	newValue = append(newValue, buf[:n]...)
+	newValue = append(newValue, kb...)
+	n = binary.PutUvarint(buf[:], uint64(len(vb)))
+	newValue = append(newValue, buf[:n]...)
+	newValue = append(newValue, vb...)
+
+	tx.Set(op.B.key(key), newValue)
+	return true, nil
 }
 
 func (b *Backend) HDel(key, field string, fields ...string) error {
@@ -299,34 +412,48 @@ func (b *Backend) HDel(key, field string, fields ...string) error {
 	for _, field := range fields {
 		toDel[field] = struct{}{}
 	}
-	k := b.key(key)
 	_, err := b.Database.Transact(func(tx fdb.Transaction) (interface{}, error) {
-		b, err := tx.Get(k).Get()
-		if err != nil {
-			return nil, err
-		}
-		var newValue []byte
-		rem := b
-		for len(rem) > 0 {
-			kl, kn := binary.Uvarint(rem)
-			if kn <= 0 || uint64(len(rem)) < uint64(kn)+kl {
-				return nil, fmt.Errorf("unable to decode hash")
-			}
-			vl, vn := binary.Uvarint(rem[kn+int(kl):])
-			if vn <= 0 || uint64(len(rem)) < uint64(kn+vn)+kl+vl {
-				return nil, fmt.Errorf("unable to decode hash")
-			}
-			if _, ok := toDel[string(rem[kn:kn+int(kl)])]; !ok {
-				newValue = append(newValue, rem[:kn+vn+int(kl+vl)]...)
-			}
-			rem = rem[kn+vn+int(kl+vl):]
-		}
-		if len(newValue) < len(b) {
-			tx.Set(k, newValue)
-		}
-		return nil, nil
+		impl := &hDel{B: b}
+		impl.InitNonBlocking(tx, key)
+		return nil, impl.Complete(tx, key, toDel)
 	})
 	return err
+}
+
+type hDel struct {
+	B   *Backend
+	get fdb.FutureByteSlice
+}
+
+func (op *hDel) InitNonBlocking(tx fdb.Transaction, key string) {
+	op.get = tx.Get(op.B.key(key))
+}
+
+func (op *hDel) Complete(tx fdb.Transaction, key string, toDel map[string]struct{}) error {
+	v, err := op.get.Get()
+	if err != nil {
+		return err
+	}
+	var newValue []byte
+	rem := v
+	for len(rem) > 0 {
+		kl, kn := binary.Uvarint(rem)
+		if kn <= 0 || uint64(len(rem)) < uint64(kn)+kl {
+			return fmt.Errorf("unable to decode hash")
+		}
+		vl, vn := binary.Uvarint(rem[kn+int(kl):])
+		if vn <= 0 || uint64(len(rem)) < uint64(kn+vn)+kl+vl {
+			return fmt.Errorf("unable to decode hash")
+		}
+		if _, ok := toDel[string(rem[kn:kn+int(kl)])]; !ok {
+			newValue = append(newValue, rem[:kn+vn+int(kl+vl)]...)
+		}
+		rem = rem[kn+vn+int(kl+vl):]
+	}
+	if len(newValue) < len(v) {
+		tx.Set(op.B.key(key), newValue)
+	}
+	return nil
 }
 
 func (b *Backend) HGet(key, field string) (*string, error) {
@@ -396,37 +523,80 @@ func floatFromBytes(b []byte) float64 {
 }
 
 func (b *Backend) ZHAdd(key, field string, member interface{}, score float64) error {
-	v := toBytes(member)
-	k := b.zLexKey(key, field)
 	_, err := b.Database.Transact(func(tx fdb.Transaction) (interface{}, error) {
-		if existing, err := tx.Get(k).Get(); err != nil {
-			return nil, err
-		} else if existing != nil {
-			if prevScore := floatFromBytes(existing[:8]); prevScore != score {
-				tx.Clear(b.zScoreKey(key, field, prevScore))
-			}
-		}
-		tx.Set(k, append(floatBytes(score), v...))
-		tx.Set(b.zScoreKey(key, field, score), v)
-		return nil, nil
+		op := zHAdd{B: b}
+		op.InitNonBlocking(tx, key, field)
+		return nil, op.Complete(tx, key, field, member, score)
 	})
 	return err
 }
 
-func (b *Backend) ZScore(key string, member interface{}) (*float64, error) {
-	field := *keyvaluestore.ToString(member)
-	if r, err := b.Database.ReadTransact(func(tx fdb.ReadTransaction) (interface{}, error) {
-		existing, err := tx.Get(b.zLexKey(key, field)).Get()
-		if err != nil || len(existing) < 8 {
-			return nil, err
+type zHAdd struct {
+	B   *Backend
+	get fdb.FutureByteSlice
+}
+
+func (op *zHAdd) InitNonBlocking(tx fdb.Transaction, key, field string) {
+	op.get = tx.Get(op.B.zLexKey(key, field))
+}
+
+func (op *zHAdd) Complete(tx fdb.Transaction, key, field string, member interface{}, score float64) error {
+	v := toBytes(member)
+	existing, err := op.get.Get()
+	if err != nil {
+		return err
+	}
+	if existing != nil {
+		if prevScore := floatFromBytes(existing[:8]); prevScore != score {
+			tx.Clear(op.B.zScoreKey(key, field, prevScore))
 		}
-		return floatFromBytes(existing[:8]), nil
+	}
+	tx.Set(op.B.zLexKey(key, field), append(floatBytes(score), v...))
+	tx.Set(op.B.zScoreKey(key, field, score), v)
+	return err
+}
+
+func (op *zHAdd) CompleteNX(tx fdb.Transaction, key, field string, member interface{}, score float64) (bool, error) {
+	v := toBytes(member)
+	existing, err := op.get.Get()
+	if err != nil || existing != nil {
+		return false, err
+	}
+	tx.Set(op.B.zLexKey(key, field), append(floatBytes(score), v...))
+	tx.Set(op.B.zScoreKey(key, field, score), v)
+	return true, err
+}
+
+func (b *Backend) zHAddNX(tx fdb.Transaction, key, field string, member interface{}, score float64) (bool, error) {
+	if r, err := b.Database.Transact(func(tx fdb.Transaction) (interface{}, error) {
+		op := zHAdd{B: b}
+		op.InitNonBlocking(tx, key, field)
+		return op.CompleteNX(tx, key, field, member, score)
+	}); err != nil {
+		return false, err
+	} else {
+		return r.(bool), err
+	}
+}
+
+func (b *Backend) ZScore(key string, member interface{}) (*float64, error) {
+	if r, err := b.Database.ReadTransact(func(tx fdb.ReadTransaction) (interface{}, error) {
+		return b.zScore(tx, key, member)
 	}); err != nil {
 		return nil, err
-	} else if f, ok := r.(float64); ok {
-		return &f, nil
+	} else {
+		return r.(*float64), nil
 	}
-	return nil, nil
+}
+
+func (b *Backend) zScore(tx fdb.ReadTransaction, key string, member interface{}) (*float64, error) {
+	field := *keyvaluestore.ToString(member)
+	existing, err := tx.Get(b.zLexKey(key, field)).Get()
+	if err != nil || len(existing) < 8 {
+		return nil, err
+	}
+	score := floatFromBytes(existing[:8])
+	return &score, nil
 }
 
 func (b *Backend) ZIncrBy(key string, member string, n float64) (float64, error) {
@@ -458,17 +628,31 @@ func (b *Backend) ZRem(key string, member interface{}) error {
 }
 
 func (b *Backend) ZHRem(key, field string) error {
-	lexKey := b.zLexKey(key, field)
 	_, err := b.Database.Transact(func(tx fdb.Transaction) (interface{}, error) {
-		existing, err := tx.Get(lexKey).Get()
-		if err != nil || len(existing) < 8 {
-			return nil, err
-		}
-		score := floatFromBytes(existing[:8])
-		tx.Clear(lexKey)
-		tx.Clear(b.zScoreKey(key, field, score))
-		return nil, nil
+		op := zHRem{B: b}
+		op.InitNonBlocking(tx, key, field)
+		return nil, op.Complete(tx, key, field)
 	})
+	return err
+}
+
+type zHRem struct {
+	B   *Backend
+	get fdb.FutureByteSlice
+}
+
+func (op *zHRem) InitNonBlocking(tx fdb.Transaction, key, field string) {
+	k := op.B.zLexKey(key, field)
+	op.get = tx.Get(k)
+	tx.Clear(k)
+}
+
+func (op *zHRem) Complete(tx fdb.Transaction, key, field string) error {
+	existing, err := op.get.Get()
+	if err == nil && existing != nil {
+		score := floatFromBytes(existing[:8])
+		tx.Clear(op.B.zScoreKey(key, field, score))
+	}
 	return err
 }
 

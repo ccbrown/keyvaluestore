@@ -1,18 +1,43 @@
 version: '3'
 services:
   dev:
+    build:
+      context: .
+      dockerfile: Dockerfile-dev
+      args:
+        FDB_VERSION: 6.2.28
     image: golang:1.15
     environment:
       GO111MODULE: 'on'
       DYNAMODB_ENDPOINT: http://dynamodb.local:8000
       REDIS_ADDRESS: redis.local:6379
+      FOUNDATIONDB_CLUSTERFILE_CONTENT: docker:docker@172.16.238.10:4500
+      FOUNDATIONDB_SUBSPACE: test
     links:
       - dynamodb:dynamodb.local
       - redis:redis.local
+      - foundationdb:foundationdb.local
+    networks:
+      - net
     volumes:
       - .:/go/src/github.com/ccbrown/keyvaluestore
     working_dir: /go/src/github.com/ccbrown/keyvaluestore
   redis:
     image: redis
+    networks:
+      - net
   dynamodb:
     image: amazon/dynamodb-local
+    networks:
+      - net
+  foundationdb:
+    image: foundationdb/foundationdb:6.2.28
+    networks:
+      net:
+        ipv4_address: 172.16.238.10
+networks:
+  net:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.16.238.0/24

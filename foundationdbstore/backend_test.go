@@ -1,6 +1,7 @@
 package foundationdbstore
 
 import (
+	"io/ioutil"
 	"os"
 	"testing"
 
@@ -16,13 +17,25 @@ func TestBackend(t *testing.T) {
 	var db fdb.Database
 	var ss subspace.Subspace
 
-	if subspaceStr := os.Getenv("FDB_SUBSPACE"); subspaceStr == "" {
+	if subspaceStr := os.Getenv("FOUNDATIONDB_SUBSPACE"); subspaceStr == "" {
 		t.Skip("no foundationdb subspace specified")
 	} else {
 		fdb.MustAPIVersion(620)
-		var err error
-		db, err = fdb.OpenDefault()
-		require.NoError(t, err)
+
+		if content := os.Getenv("FOUNDATIONDB_CLUSTERFILE_CONTENT"); content == "" {
+			var err error
+			db, err = fdb.OpenDefault()
+			require.NoError(t, err)
+		} else {
+			f, err := ioutil.TempFile("", "*.cluster")
+			require.NoError(t, err)
+			_, err = f.Write([]byte(content))
+			require.NoError(t, err)
+			f.Close()
+			db, err = fdb.OpenDatabase(f.Name())
+			require.NoError(t, err)
+		}
+
 		ss = subspace.FromBytes([]byte(subspaceStr))
 	}
 
