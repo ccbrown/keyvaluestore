@@ -6,7 +6,7 @@ import (
 )
 
 type BatchOperation struct {
-	// We use the fallback for operations that require strict isolation.
+	// We use the fallback for operations that can't be done with snapshot reads.
 	*keyvaluestore.FallbackBatchOperation
 
 	Backend *Backend
@@ -42,32 +42,6 @@ func (op *BatchOperation) Get(key string) keyvaluestore.GetResult {
 	op.p2 = append(op.p2, func(tx fdb.Transaction) error {
 		r.v, r.err = get.Get()
 		return r.err
-	})
-	return r
-}
-
-type errorResult struct {
-	err error
-}
-
-func (r *errorResult) Result() error {
-	return r.err
-}
-
-func (op *BatchOperation) Delete(key string) keyvaluestore.ErrorResult {
-	r := &errorResult{}
-	op.p1 = append(op.p1, func(tx fdb.Transaction) error {
-		tx.Clear(op.Backend.key(key))
-		return nil
-	})
-	return r
-}
-
-func (op *BatchOperation) Set(key string, value interface{}) keyvaluestore.ErrorResult {
-	r := &errorResult{}
-	op.p1 = append(op.p1, func(tx fdb.Transaction) error {
-		tx.Set(op.Backend.key(key), toBytes(value))
-		return nil
 	})
 	return r
 }
