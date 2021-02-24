@@ -318,8 +318,15 @@ func (op *AtomicWriteOperation) Exec() (bool, error) {
 		}
 		return true, nil
 	}); err != nil {
-		if err, ok := err.(fdb.Error); ok && err.Code == 1025 /* transaction canceled */ {
-			return false, nil
+		if err, ok := err.(fdb.Error); ok {
+			switch err.Code {
+			case 1010: // not_committed, Transaction not committed due to conflict with another transaction
+				return false, &keyvaluestore.AtomicWriteConflictError{
+					Err: err,
+				}
+			case 1025: // transaction_cancelled, Operation aborted because the transaction was cancelled
+				return false, nil
+			}
 		}
 		return false, err
 	} else {
