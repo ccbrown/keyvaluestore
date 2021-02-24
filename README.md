@@ -1,6 +1,11 @@
 # keyvaluestore [![Build Status](https://travis-ci.org/ccbrown/keyvaluestore.svg?branch=master)](https://travis-ci.org/ccbrown/keyvaluestore) [![Documentation](https://godoc.org/github.com/ccbrown/keyvaluestore?status.svg)](https://godoc.org/github.com/ccbrown/keyvaluestore)
 
-This package provides an interface with a Redis-like API and implementations for multiple key-value store backends. It supports profiling, caching, batching, eventual consistency, and transactions. It has implementations for Redis, which is ideal for dev environments, DynamoDB, which is ideal in production, and an in-memory store, which is ideal for tests.
+This package provides an interface with a Redis-like API and implementations for multiple key-value store backends. It supports profiling, caching, batching, eventual consistency, and transactions. It has implementations for:
+
+* Redis, which is ideal for dev environments due to its low overhead.
+* DynamoDB, which is ideal in production due to its incredible scalability.
+* FoundationDB, which is ideal in production when you want control over the hardware or when DynamoDB's latency isn't good enough.
+* An in-memory store, which is ideal for unit tests as it can be trivially destroyed and created.
 
 This project originated at the AAF, where it was used in production until the company went bankrupt. I (@ccbrown) believe it's the best way to use DynamoDB in Go applications, so I'm continuing to maintain it and use it for other projects.
 
