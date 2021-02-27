@@ -10,5 +10,5 @@ jobs:
     - name: Test
       run: |
         docker-compose up -d foundationdb
-        docker-compose exec foundationdb fdbcli --exec 'configure new single memory'
+        docker-compose exec -T foundationdb fdbcli --exec 'configure new single memory'
         docker-compose run dev go test -v ./...
