@@ -15,8 +15,13 @@ import (
 	"github.com/ccbrown/keyvaluestore"
 )
 
+type Database interface {
+	Transact(f func(fdb.Transaction) (interface{}, error)) (interface{}, error)
+	ReadTransact(f func(fdb.ReadTransaction) (interface{}, error)) (interface{}, error)
+}
+
 type Backend struct {
-	Database fdb.Database
+	Database Database
 	Subspace subspace.Subspace
 }
 
@@ -25,6 +30,14 @@ func (b *Backend) key(key string) fdb.Key {
 }
 
 func (b *Backend) WithProfiler(profiler interface{}) keyvaluestore.Backend {
+	if p, ok := profiler.(Profiler); ok {
+		ret := *b
+		ret.Database = &ProfilingDatabase{
+			Database: b.Database,
+			Profiler: p,
+		}
+		return &ret
+	}
 	return b
 }
 
