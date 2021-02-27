@@ -1,4 +1,4 @@
-# keyvaluestore [![Build Status](https://travis-ci.org/ccbrown/keyvaluestore.svg?branch=master)](https://travis-ci.org/ccbrown/keyvaluestore) [![Documentation](https://godoc.org/github.com/ccbrown/keyvaluestore?status.svg)](https://godoc.org/github.com/ccbrown/keyvaluestore)
+# keyvaluestore [![Documentation](https://godoc.org/github.com/ccbrown/keyvaluestore?status.svg)](https://godoc.org/github.com/ccbrown/keyvaluestore)
 
 This package provides an interface with a Redis-like API and implementations for multiple key-value store backends. It supports profiling, caching, batching, eventual consistency, and transactions. It has implementations for:
 

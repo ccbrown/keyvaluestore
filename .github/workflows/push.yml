@@ -1,0 +1,14 @@
+name: Push
+on: [push]
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Test
+      run: |
+        docker-compose up -d foundationdb
+        docker-compose exec foundationdb fdbcli --exec 'configure new single memory'
+        docker-compose run dev go test -v ./...
